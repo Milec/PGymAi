@@ -1,0 +1,82 @@
+/** Minimal stroked icon set (HUD-style, currentColor). */
+type P = { size?: number; className?: string };
+const base = (size: number) => ({
+  width: size,
+  height: size,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.6,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+});
+
+export const IconDash = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="3" y="3" width="7" height="9" />
+    <rect x="14" y="3" width="7" height="5" />
+    <rect x="14" y="12" width="7" height="9" />
+    <rect x="3" y="16" width="7" height="5" />
+  </svg>
+);
+export const IconLift = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M6 8v8M18 8v8M2 10v4M22 10v4M6 12h12" />
+  </svg>
+);
+export const IconLibrary = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M4 4h5v16H4zM11 4h4v16h-4z" />
+    <path d="M17 5l3 .8-3 14-3-.8" />
+  </svg>
+);
+export const IconChart = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M3 3v18h18" />
+    <path d="M7 14l4-5 3 3 5-7" />
+  </svg>
+);
+export const IconGauge = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M4 18a8 8 0 1 1 16 0" />
+    <path d="M12 14l4-4" />
+  </svg>
+);
+export const IconProgram = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+    <path d="M8 7h8M8 11h8M8 15h5" />
+  </svg>
+);
+export const IconUser = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21a8 8 0 0 1 16 0" />
+  </svg>
+);
+export const IconPlus = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+export const IconCheck = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M4 12l5 5L20 6" />
+  </svg>
+);
+export const IconTrash = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
+  </svg>
+);
+export const IconClock = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 3" />
+  </svg>
+);
+export const IconFire = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-1.5.7-2.8 1.5-3.5C8.5 10 9 12 9 12s0-4 3-9z" />
+  </svg>
+);
