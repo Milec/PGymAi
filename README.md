@@ -7,8 +7,9 @@ distinctive differentiator: **bodyweight-relative strength comparison** that
 places each of your lifts against published strength-standard bands for your
 sex and bodyweight.
 
-Everything runs **100% client-side** in your browser (IndexedDB via Dexie).
-No backend, no accounts, no network required after first load.
+By default everything runs **100% client-side** in your browser (IndexedDB via
+Dexie) — no account or network required. **Optional Supabase cloud sync** adds
+accounts and multi-device sync while keeping the app fully offline-first.
 
 The interface is a dark **"Starship HUD"**: frosted-glass chamfered panels with
 glowing corner brackets, a drifting cyan/violet aurora over a dotted-grid
@@ -108,6 +109,58 @@ See [`DECISIONS.md` §4](DECISIONS.md) for the full schema and semantics.
 
 ---
 
+## Cloud Sync (optional, Supabase)
+
+STRIDE is **offline-first**: IndexedDB is always the source of truth and the app
+works with no backend. When you configure Supabase and sign in, your **workouts,
+programs, custom exercises, and profile** sync across devices in the background.
+
+- **Architecture** — local-first with background sync. On sign-in, local and
+  remote data are reconciled **last-write-wins** using per-record `updatedAt`
+  timestamps; deletions propagate via tombstones. Supabase **Realtime** pushes
+  changes to other signed-in devices live. If you're offline, everything keeps
+  working and syncs when you reconnect.
+- **Auth** — email/password and passwordless magic-link (Supabase Auth).
+- **Isolation** — Postgres **Row Level Security** scopes every row to its owner
+  (`user_id = auth.uid()`), so users only ever see their own data.
+
+### Enable it
+
+1. Create a Supabase project. Copy the **Project URL** and the **anon /
+   publishable key** (safe to expose in a browser).
+2. Run [`supabase/schema.sql`](supabase/schema.sql) once in the Supabase SQL
+   Editor (creates the tables, RLS policies, and Realtime publication).
+3. Set env vars (local `.env`, or repo secrets for the Pages deploy):
+   ```bash
+   VITE_SUPABASE_URL=https://<project>.supabase.co
+   VITE_SUPABASE_ANON_KEY=<anon-or-publishable-key>
+   ```
+4. Run the app, open **Profile → Cloud Sync**, and sign in.
+
+If the env vars are unset the app simply runs local-only. If you sign in before
+running the schema, the Cloud Sync panel tells you the tables are missing.
+
+**Limitations**: last-write-wins resolves conflicts at the record (whole
+workout/program) level, not field-by-field; the seeded exercise library is
+identical for everyone and isn't synced (only your custom exercises are).
+
+## Deployment (GitHub Pages)
+
+A workflow at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
+builds and publishes the app to GitHub Pages on every push to `main`.
+
+1. In the repo, go to **Settings → Pages → Build and deployment → Source** and
+   choose **GitHub Actions**.
+2. (Optional, for cloud sync on the live site) add repository **secrets**
+   `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` under
+   **Settings → Secrets and variables → Actions**.
+3. Push to `main` (or run the workflow manually). The site publishes at
+   `https://<owner>.github.io/<repo>/`.
+
+The build sets Vite's `base` to `/<repo>/` automatically (via `VITE_BASE`), and
+the app uses hash-based routing so deep links work on Pages without server
+rewrites. The PWA manifest scope/start_url follow the base path.
+
 ## Getting Started
 
 Requires **Node ≥ 20** and **pnpm**.
@@ -146,7 +199,8 @@ offline.
 ## Tech Stack
 
 React 19 · TypeScript (strict) · Vite 8 · Tailwind CSS v4 · vite-plugin-pwa
-(Workbox) · Dexie (IndexedDB) · Zustand · Recharts · Zod · Vitest · Playwright.
+(Workbox) · Dexie (IndexedDB) · Zustand · Recharts · Zod · Supabase (optional
+cloud sync) · Vitest · Playwright · GitHub Actions (Pages deploy).
 
 Rationale for each choice, the strength-standards source, and the schema docs
 are in [`DECISIONS.md`](DECISIONS.md).
@@ -164,8 +218,12 @@ src/
   lib/              units, e1RM, progression engine, analytics, program runner
   routes/           Dashboard, Workout, Library, Progress, Strength, Programs, Profile
   schema/           Zod program schema + validation
-  store/            Zustand app store (profile, active session, timers)
+  store/            Zustand stores (app state + auth/sync)
+  sync/             Supabase sync engine, last-write-wins merge, local helpers
+  lib/supabase.ts   env-gated Supabase client (null when unconfigured)
 tests/              Playwright smoke tests
+supabase/           schema.sql (tables, RLS policies, Realtime)
+.github/workflows/  GitHub Pages deploy
 scripts/            icon + screenshot generators
 ```
 

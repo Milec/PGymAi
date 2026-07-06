@@ -148,7 +148,56 @@ degrade accuracy and the UI notes this.
 - **Timers**: rest + duration timers store absolute timestamps (localStorage /
   the workout record) and recompute on resume, surviving backgrounding/reload.
 
-## 7. Verification Results (Definition of Done)
+## 7. Cloud Sync (Supabase) & Deployment
+
+**Added after v1** to give STRIDE optional accounts + multi-device sync without
+sacrificing the offline-first design.
+
+### Sync architecture — local-first with background sync
+
+- **IndexedDB stays the source of truth.** The Supabase client (`src/lib/supabase.ts`)
+  is `null` when `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` are unset, so the
+  app behaves exactly as the local-only v1 until configured. All sync calls
+  null-check and no-op otherwise.
+- **Backend shape**: each record is a JSONB `data` blob + an `updated_at`
+  epoch-ms bigint (`supabase/schema.sql`). Tables: `profiles`, `workouts`,
+  `programs`, `custom_exercises`, plus a `deletions` tombstone table.
+- **Conflict resolution**: **last-write-wins** by `updatedAt`. The pure
+  `reconcile()` in `src/sync/merge.ts` computes, for a local + remote record set
+  (with tombstones on both sides), what to write locally, delete locally, push,
+  and delete remotely. It is unit-tested in isolation (`merge.test.ts`).
+- **Deletions** propagate via tombstones (local Dexie `deletions` table ↔ remote
+  `deletions` table) so a delete on one device removes the record everywhere,
+  even across offline windows.
+- **Realtime**: `postgres_changes` subscriptions apply inbound edits/deletes from
+  other devices live. Store writes push optimistically (debounced ~1.5s so
+  typing a set doesn't spam the network); a full `reconcile` runs on sign-in and
+  on reconnect (`online` event).
+- **Security**: Row Level Security scopes every row to `auth.uid()`.
+- **Auth**: email/password + magic-link (`signInWithOtp`). OAuth is intentionally
+  deferred (needs per-provider dashboard config).
+- **Limitations** (documented in-app + README): LWW is record-level, not
+  field-level; the seeded exercise library isn't synced (identical everywhere),
+  only custom exercises are.
+
+**Why LWW + JSONB blobs** rather than a normalized relational schema: it mirrors
+the existing Dexie record model 1:1, keeps the sync engine small and generic,
+and avoids schema drift between the two stores. For a single-user-per-account
+fitness log this is sufficient and robust.
+
+### Deployment — GitHub Pages
+
+- `.github/workflows/deploy.yml` builds with pnpm and publishes `dist/` via
+  `actions/deploy-pages`. Triggers on push to `main` + manual dispatch.
+- Pages serves under `/<repo>/`, so the workflow sets `VITE_BASE=/<repo>/`;
+  `vite.config.ts` applies it to `base`, the PWA manifest `scope`/`start_url`,
+  and `navigateFallback`. Hash-based routing means deep links work without
+  server rewrites. `public/.nojekyll` prevents Jekyll from touching assets.
+- Supabase creds are read from repo **secrets** at build time (public anon key,
+  but kept out of git per guardrails); absent secrets → the deployed site runs
+  local-only.
+
+## 8. Verification Results (Definition of Done)
 
 Verified locally against the production build (`pnpm preview`):
 
