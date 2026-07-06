@@ -29,6 +29,7 @@ space-navy field, luminous scanlines, and instrument-panel numeric readouts.
 | **Progress** | Per-exercise charts: estimated 1RM over time (Epley or Brzycki), top set, session volume, and a PR timeline. **Settable period** (3M/6M/1Y/All); the dashboard volume chart has a 4w–1y window. |
 | **Strength Standards** | The differentiator — see below. |
 | **Programs** | Import multi-week programs (file upload or paste-JSON, Zod-validated), follow week/day with adaptive load suggestions, export any program back to JSON. Ships 3 example programs. |
+| **Training Log** | Browse every finished session (date, duration, volume, sets, lifts) and expand any one for full per-exercise set detail. A month **calendar** highlights which days you trained; tap a day to filter the log, or delete a session. |
 | **Profile** | Sex, bodyweight, age, kg/lb units (toggles everywhere), default rest time, data export/erase, and a "Load Sample Data" button. **Theme picker**: Starship HUD (default), Dark Night, Light, and Bubblegum. |
 
 ### Screenshots

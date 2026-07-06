@@ -80,3 +80,19 @@ export const IconFire = ({ size = 20, className }: P) => (
     <path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-1.5.7-2.8 1.5-3.5C8.5 10 9 12 9 12s0-4 3-9z" />
   </svg>
 );
+export const IconCalendar = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="3" y="4" width="18" height="17" rx="2" />
+    <path d="M3 9h18M8 2v4M16 2v4" />
+  </svg>
+);
+export const IconChevronL = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M15 6l-6 6 6 6" />
+  </svg>
+);
+export const IconChevronR = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);

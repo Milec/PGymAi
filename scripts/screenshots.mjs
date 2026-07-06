@@ -12,6 +12,7 @@ const routes = [
   ['progress', '/progress'],
   ['strength', '/strength'],
   ['programs', '/programs'],
+  ['history', '/history'],
   ['profile', '/profile'],
 ];
 
