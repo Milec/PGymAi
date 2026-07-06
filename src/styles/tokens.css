@@ -31,6 +31,18 @@
   --glow-violet: 0 0 18px rgba(162, 107, 255, 0.4);
   --glow-amber: 0 0 16px rgba(255, 176, 32, 0.45);
 
+  /* Ambient background (aurora + dotted grid + scanlines) */
+  --aurora-1: rgba(56, 225, 255, 0.2);
+  --aurora-2: rgba(162, 107, 255, 0.18);
+  --aurora-3: rgba(255, 176, 32, 0.08);
+  --grid-dot: rgba(120, 200, 255, 0.14);
+  --scanline: rgba(120, 200, 255, 0.05);
+  --vignette: rgba(3, 5, 11, 0.7);
+
+  /* Charts */
+  --chart-grid: #132038;
+  --chart-axis: #1a2740;
+
   /* Geometry */
   --chamfer: 14px;
   --radius: 4px;

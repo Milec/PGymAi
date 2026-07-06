@@ -78,6 +78,50 @@ test('program import validates and rejects bad JSON', async ({ page }) => {
   await expect(page.getByText(/VALIDATION FAILED/i)).toBeVisible();
 });
 
+test('theme setting re-skins the app', async ({ page }) => {
+  await freshApp(page);
+  await page.goto('/#/profile');
+  await expect(page.getByText('THEME').first()).toBeVisible();
+  await page.getByRole('button', { name: /bubblegum/i }).click();
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')))
+    .toBe('bubblegum');
+  // Persists across reload — wait for the async profile write to flush first.
+  await page.waitForTimeout(600);
+  await page.reload();
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')))
+    .toBe('bubblegum');
+});
+
+test('library PR can be set and drives auto-fill in a workout', async ({ page }) => {
+  await freshApp(page);
+  // 1) Set a 1RM PR for Back Squat in the Library.
+  await page.goto('/#/library');
+  await page.getByPlaceholder(/search exercises/i).fill('Back Squat');
+  const card = page.locator('button', { hasText: '1RM PR' }).first();
+  await card.click();
+  await expect(page.getByRole('heading', { name: /back squat — 1rm pr/i })).toBeVisible();
+  await page.getByPlaceholder('e.g. 140').fill('150');
+  await page.getByRole('button', { name: /save pr/i }).click();
+  await expect(page.getByText('150', { exact: false }).first()).toBeVisible();
+
+  // 2) Start a workout, add Back Squat, auto-fill at 100% → should fill 150.
+  await page.goto('/#/workout');
+  await page.getByRole('button', { name: /start freestyle/i }).click();
+  await page.getByRole('button', { name: /add exercise/i }).click();
+  await page.getByPlaceholder('Search…').fill('Back Squat');
+  await page.getByRole('button', { name: /^Back Squat/ }).first().click();
+
+  await page.getByRole('button', { name: /auto-fill weight/i }).click();
+  const pct = page.locator('input[inputmode="numeric"]').first();
+  await pct.fill('100');
+  await page.getByRole('button', { name: /fill all sets/i }).click();
+
+  const firstWeight = page.locator('input[inputmode="decimal"]').first();
+  await expect(firstWeight).toHaveValue('150');
+});
+
 test('cloud sync account panel and auth modal render', async ({ page }) => {
   await freshApp(page);
   await page.goto('/#/profile');

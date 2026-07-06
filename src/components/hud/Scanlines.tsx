@@ -7,7 +7,7 @@ export function Scanlines() {
         className="absolute inset-0 opacity-[0.35]"
         style={{
           backgroundImage:
-            'repeating-linear-gradient(to bottom, rgba(120,200,255,0.05) 0px, rgba(120,200,255,0.05) 1px, transparent 1px, transparent 3px)',
+            'repeating-linear-gradient(to bottom, var(--scanline) 0px, var(--scanline) 1px, transparent 1px, transparent 3px)',
         }}
       />
       {/* moving luminous sweep */}

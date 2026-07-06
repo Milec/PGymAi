@@ -3,6 +3,7 @@ import { db } from '@/db/db';
 import { DEFAULT_PROFILE, ensureSeeded } from '@/db/seed';
 import type { LoggedSet, Profile, Workout, WorkoutEntry } from '@/db/types';
 import { uid } from '@/lib/id';
+import { applyTheme, DEFAULT_THEME, type ThemeName } from '@/lib/theme';
 import { persistProfile, persistWorkout, removeWorkout } from '@/sync/local';
 
 const REST_KEY = 'stride.restEndsAt';
@@ -17,6 +18,8 @@ interface AppState {
   init: () => Promise<void>;
   reloadFromDb: () => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
+  setTheme: (theme: ThemeName) => Promise<void>;
+  setPr: (exerciseId: string, oneRmKg: number | null) => Promise<void>;
 
   startWorkout: (opts?: Partial<Pick<Workout, 'title' | 'programId' | 'weekIndex' | 'dayIndex'>>) => Promise<void>;
   startSession: (w: Workout) => boolean;
@@ -67,6 +70,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const active = unfinished[0] ?? null;
     const restRaw = localStorage.getItem(REST_KEY);
     const restEndsAt = restRaw ? Number(restRaw) : null;
+    applyTheme(profile.theme ?? DEFAULT_THEME);
     set({
       ready: true,
       profile,
@@ -81,6 +85,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     await persistProfile(profile);
   },
 
+  setTheme: async (theme) => {
+    applyTheme(theme);
+    await get().updateProfile({ theme });
+  },
+
+  setPr: async (exerciseId, oneRmKg) => {
+    const prs = { ...(get().profile.prs ?? {}) };
+    if (oneRmKg && oneRmKg > 0) prs[exerciseId] = oneRmKg;
+    else delete prs[exerciseId];
+    await get().updateProfile({ prs });
+  },
+
   reloadFromDb: async () => {
     const profile = (await db.profile.get('me')) ?? DEFAULT_PROFILE;
     const a = get().active;
@@ -90,6 +106,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const fresh = await db.workouts.get(a.id);
       active = fresh && fresh.finishedAt === undefined ? fresh : a;
     }
+    applyTheme(profile.theme ?? DEFAULT_THEME);
     set({ profile, active });
   },
 

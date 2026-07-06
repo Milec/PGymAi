@@ -197,7 +197,27 @@ fitness log this is sufficient and robust.
   but kept out of git per guardrails); absent secrets → the deployed site runs
   local-only.
 
-## 8. Verification Results (Definition of Done)
+## 8. Themes, chart periods, and per-lift PRs (v3)
+
+- **Themes**: design tokens are CSS variables, so theming is a variable-override
+  layer (`src/styles/themes.css`) keyed on `:root[data-theme=…]`. Ships four
+  themes — Starship HUD (default), Dark Night, Light, Bubblegum. The aurora,
+  dotted grid, scanlines, and chart colours read tokens too, so the whole app
+  re-skins. The choice persists in the profile (and syncs). `applyTheme()` also
+  keeps the PWA `theme-color` meta in step with the background.
+- **Chart periods**: the dashboard volume chart takes a week window (4/8/12/26/52);
+  the Progress charts take a 3M/6M/1Y/All filter applied to the point series.
+- **Per-lift PRs + auto-fill**: a user's manual 1RM per exercise is stored on the
+  profile (`profile.prs[exerciseId]`, kg) — so it syncs with no new backend
+  table. The Library lets you set/clear it per lift. In a workout, "Auto-fill
+  weight" computes working load from the effective 1RM (manual PR, else best
+  historical e1RM) by **%1RM**, or by **RPE + reps** via the RPE→%1RM table
+  (`rpePercent`), rounded to plate increments, and fills every set (RPE mode also
+  prefills reps).
+- **Scroll lock**: `overscroll-behavior: none` on `html`/`body` plus a fixed
+  background stops rubber-band scrolling above the top banner.
+
+## 9. Verification Results (Definition of Done)
 
 Verified locally against the production build (`pnpm preview`):
 

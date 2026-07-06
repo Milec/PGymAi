@@ -1,0 +1,115 @@
+/* STRIDE themes. The default (Starship HUD) lives in tokens.css :root.
+   Each theme overrides the design-token CSS variables; components read the
+   tokens, so the whole UI (panels, text, aurora, charts) re-skins. */
+
+/* ---- Dark Night — calmer deep indigo, low glow ---- */
+:root[data-theme='night'] {
+  --space-0: #070912;
+  --space-1: #0a0e1c;
+  --space-2: #0e1326;
+  --space-3: #141c39;
+
+  --cyan: #7aa2ff; /* indigo-blue primary */
+  --cyan-dim: #4c6ad0;
+  --violet: #b09cff;
+  --violet-dim: #7b62d8;
+  --amber: #ffd27a; /* soft gold */
+  --up: #6ee7b7;
+  --down: #ff8095;
+
+  --ink: #e6e9f5;
+  --ink-dim: #a6adc8;
+  --ink-faint: #6b7396;
+
+  --line: rgba(150, 165, 230, 0.16);
+  --line-strong: rgba(150, 165, 230, 0.32);
+  --glass: rgba(18, 22, 44, 0.6);
+  --glass-hi: rgba(26, 32, 58, 0.72);
+
+  --aurora-1: rgba(122, 162, 255, 0.16);
+  --aurora-2: rgba(176, 156, 255, 0.16);
+  --aurora-3: rgba(255, 210, 122, 0.06);
+  --grid-dot: rgba(150, 165, 230, 0.1);
+  --scanline: rgba(150, 165, 230, 0.04);
+  --vignette: rgba(5, 6, 16, 0.75);
+  --chart-grid: #1a2145;
+  --chart-axis: #232c56;
+}
+
+/* ---- Light — clean daylight ---- */
+:root[data-theme='light'] {
+  --space-0: #eef3fb;
+  --space-1: #ffffff;
+  --space-2: #f4f8ff;
+  --space-3: #e6edf9;
+
+  --cyan: #0b8fb8; /* legible teal on light */
+  --cyan-dim: #0b7396;
+  --violet: #7c4ddb;
+  --violet-dim: #6236b8;
+  --amber: #c77b06;
+  --up: #12a170;
+  --down: #d83a52;
+
+  --ink: #0f1c30;
+  --ink-dim: #43536e;
+  --ink-faint: #7c8aa3;
+
+  --line: rgba(30, 70, 120, 0.16);
+  --line-strong: rgba(30, 70, 120, 0.32);
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-hi: rgba(255, 255, 255, 0.86);
+  --panel-blur: 10px;
+
+  --glow-cyan: 0 0 14px rgba(11, 143, 184, 0.28);
+  --glow-violet: 0 0 14px rgba(124, 77, 219, 0.24);
+  --glow-amber: 0 0 12px rgba(199, 123, 6, 0.28);
+
+  --aurora-1: rgba(11, 143, 184, 0.14);
+  --aurora-2: rgba(124, 77, 219, 0.12);
+  --aurora-3: rgba(199, 123, 6, 0.08);
+  --grid-dot: rgba(30, 70, 120, 0.12);
+  --scanline: rgba(30, 70, 120, 0.03);
+  --vignette: rgba(210, 224, 245, 0.6);
+  --chart-grid: #d7e2f2;
+  --chart-axis: #c3d2e8;
+}
+
+/* ---- Bubblegum — girly pastel pink ---- */
+:root[data-theme='bubblegum'] {
+  --space-0: #fff0f7;
+  --space-1: #ffffff;
+  --space-2: #ffe6f2;
+  --space-3: #ffd9ec;
+
+  --cyan: #ff4fa3; /* hot pink primary */
+  --cyan-dim: #e83d8f;
+  --violet: #a05cff; /* grape secondary */
+  --violet-dim: #8442e0;
+  --amber: #ff8fb8; /* candy accent */
+  --up: #23b586;
+  --down: #ff4d6d;
+
+  --ink: #4a1533; /* deep berry text */
+  --ink-dim: #8a4f70;
+  --ink-faint: #c187a6;
+
+  --line: rgba(255, 79, 163, 0.22);
+  --line-strong: rgba(255, 79, 163, 0.42);
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-hi: rgba(255, 255, 255, 0.86);
+  --panel-blur: 10px;
+
+  --glow-cyan: 0 0 16px rgba(255, 79, 163, 0.4);
+  --glow-violet: 0 0 16px rgba(160, 92, 255, 0.32);
+  --glow-amber: 0 0 14px rgba(255, 143, 184, 0.4);
+
+  --aurora-1: rgba(255, 79, 163, 0.2);
+  --aurora-2: rgba(160, 92, 255, 0.16);
+  --aurora-3: rgba(255, 194, 222, 0.22);
+  --grid-dot: rgba(255, 79, 163, 0.16);
+  --scanline: rgba(255, 79, 163, 0.05);
+  --vignette: rgba(255, 214, 235, 0.55);
+  --chart-grid: #ffd0e6;
+  --chart-axis: #ffbcdd;
+}
