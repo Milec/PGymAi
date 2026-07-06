@@ -1,0 +1,105 @@
+import { db } from '@/db/db';
+import type { LoggedSet, Workout, WorkoutEntry } from '@/db/types';
+import { uid } from '@/lib/id';
+import { roundToIncrement } from '@/lib/units';
+
+/**
+ * Generate a realistic ~7-week training history so charts, PRs, streaks and
+ * strength comparisons have data. Used by the "Load Sample Data" button.
+ */
+export async function loadDemoData(): Promise<void> {
+  await db.workouts.filter((w) => w.title.startsWith('[Demo]')).delete();
+
+  // Set a sensible demo profile if still on defaults.
+  const profile = await db.profile.get('me');
+  if (profile) {
+    await db.profile.put({
+      ...profile,
+      sex: profile.sex === 'unspecified' ? 'male' : profile.sex,
+      bodyweightKg: profile.bodyweightKg || 82,
+      name: profile.name || 'Nova',
+    });
+  }
+
+  const plan: { id: string; start: number; incKg: number; reps: number }[] = [
+    { id: 'back-squat', start: 90, incKg: 2.5, reps: 5 },
+    { id: 'bench-press', start: 65, incKg: 1.5, reps: 5 },
+    { id: 'deadlift', start: 110, incKg: 3, reps: 5 },
+    { id: 'overhead-press', start: 42, incKg: 1, reps: 5 },
+    { id: 'barbell-row', start: 60, incKg: 1.5, reps: 6 },
+    { id: 'pull-up', start: 0, incKg: 0, reps: 8 },
+  ];
+
+  const workouts: Workout[] = [];
+  const sessions = 21; // 3x/week for 7 weeks
+  const dayMs = 86400000;
+  const now = Date.now();
+
+  for (let s = 0; s < sessions; s++) {
+    // spread ~ every 2-3 days ending near today
+    const daysAgo = (sessions - 1 - s) * 2.4 + (s % 2 === 0 ? 0 : 1);
+    const ts = now - Math.round(daysAgo * dayMs);
+    const isA = s % 2 === 0;
+    const picks = isA
+      ? ['back-squat', 'bench-press', 'barbell-row']
+      : ['deadlift', 'overhead-press', 'pull-up'];
+
+    const entries: WorkoutEntry[] = picks.map((exId) => {
+      const cfg = plan.find((p) => p.id === exId)!;
+      const progressed = cfg.start + cfg.incKg * s;
+      const noise = (Math.sin(s * 1.7 + exId.length) * cfg.incKg) / 2;
+      const weight = exId === 'pull-up' ? 0 : roundToIncrement(Math.max(20, progressed + noise), 'kg');
+      const sets: LoggedSet[] = Array.from({ length: 3 }, (_, i) => ({
+        id: uid('set'),
+        weightKg: weight,
+        reps: cfg.reps - (i === 2 && s % 3 === 0 ? 1 : 0),
+        rpe: 7 + (i === 2 ? 1.5 : 0),
+        completed: true,
+      }));
+      return { id: uid('en'), exerciseId: exId, sets };
+    });
+
+    const start = ts - 55 * 60000;
+    workouts.push({
+      id: uid('wk'),
+      startedAt: start,
+      finishedAt: ts,
+      title: `[Demo] ${isA ? 'Day A · Squat Focus' : 'Day B · Pull Focus'}`,
+      entries,
+      bodyweightKgAtTime: 82,
+    });
+  }
+
+  await db.workouts.bulkAdd(workouts);
+}
+
+export async function hasDemoData(): Promise<boolean> {
+  return (await db.workouts.filter((w) => w.title.startsWith('[Demo]')).count()) > 0;
+}
+
+/** Insert an in-progress session (picked up as active on next init) — for demos/screenshots. */
+export async function createDemoActiveSession(): Promise<void> {
+  await db.workouts.filter((w) => w.finishedAt === undefined).delete();
+  const mk = (exerciseId: string, weightKg: number, reps: number, done: number, count: number): WorkoutEntry => ({
+    id: uid('en'),
+    exerciseId,
+    sets: Array.from({ length: count }, (_, i) => ({
+      id: uid('set'),
+      weightKg,
+      reps: i < done ? reps : 0,
+      rpe: i < done ? 8 : undefined,
+      completed: i < done,
+    })),
+  });
+  await db.workouts.add({
+    id: uid('wk'),
+    startedAt: Date.now() - 18 * 60000,
+    title: 'Day A · Squat Focus',
+    entries: [
+      mk('back-squat', 102.5, 5, 2, 3),
+      mk('bench-press', 72.5, 5, 1, 3),
+      mk('barbell-row', 65, 6, 0, 3),
+    ],
+    bodyweightKgAtTime: 82,
+  });
+}
