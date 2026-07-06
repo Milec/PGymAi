@@ -24,12 +24,12 @@ space-navy field, luminous scanlines, and instrument-panel numeric readouts.
 | Area | What it does |
 | --- | --- |
 | **Flight Deck (Dashboard)** | Weekly volume, session streak, muscle-group balance radar, recent estimated-1RM PRs. Start/resume a session. |
-| **Workout Logging** | Freestyle or program-driven sessions. Log weight / reps / RPE / notes per set, mark sets complete. Per-set **rest timer** (auto-starts on completion) + a running **workout duration timer**; both survive backgrounding via persisted timestamps. Editable, deletable sets. |
-| **Exercise Library** | 162 preloaded exercises with muscle groups, equipment, movement pattern, and category. Search + filter by muscle/equipment. Add custom exercises. |
-| **Progress** | Per-exercise charts: estimated 1RM over time (Epley or Brzycki), top set, session volume, and a PR timeline. |
+| **Workout Logging** | Freestyle or program-driven sessions. Log weight / reps / RPE / notes per set, mark sets complete. Per-set **rest timer** (auto-starts on completion) + a running **workout duration timer**; both survive backgrounding via persisted timestamps. Editable, deletable sets. **Auto-fill weight** from your 1RM by **%1RM** or **RPE + reps**. |
+| **Exercise Library** | 162 preloaded exercises with muscle groups, equipment, movement pattern, and category. Search + filter by muscle/equipment. Add custom exercises. **Set a 1RM PR per lift** — used to auto-fill working weights. |
+| **Progress** | Per-exercise charts: estimated 1RM over time (Epley or Brzycki), top set, session volume, and a PR timeline. **Settable period** (3M/6M/1Y/All); the dashboard volume chart has a 4w–1y window. |
 | **Strength Standards** | The differentiator — see below. |
 | **Programs** | Import multi-week programs (file upload or paste-JSON, Zod-validated), follow week/day with adaptive load suggestions, export any program back to JSON. Ships 3 example programs. |
-| **Profile** | Sex, bodyweight, age, kg/lb units (toggles everywhere), default rest time, data export/erase, and a "Load Sample Data" button. |
+| **Profile** | Sex, bodyweight, age, kg/lb units (toggles everywhere), default rest time, data export/erase, and a "Load Sample Data" button. **Theme picker**: Starship HUD (default), Dark Night, Light, and Bubblegum. |
 
 ### Screenshots
 
@@ -40,6 +40,12 @@ Playwright loop (`pnpm shots`).
 | Workout logging | Strength standards |
 | --- | --- |
 | ![Workout](artifacts/screenshots/workout-mobile.png) | ![Strength](artifacts/screenshots/strength-desktop.png) |
+
+Themes (Bubblegum / Light / Dark Night):
+
+| Bubblegum | Light |
+| --- | --- |
+| ![Bubblegum](artifacts/screenshots/theme-bubblegum-desktop.png) | ![Light](artifacts/screenshots/theme-light-desktop.png) |
 
 ---
 

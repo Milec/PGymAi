@@ -53,6 +53,17 @@ for (const [label, vp] of Object.entries(viewports)) {
     await page.close();
     console.log(`shot ${name}-${label}`);
   }
+
+  // Theme showcase — the dashboard in each alternate theme.
+  for (const theme of ['light', 'bubblegum', 'night']) {
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/#/`, { waitUntil: 'networkidle' });
+    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+    await page.waitForTimeout(1200);
+    await page.screenshot({ path: `${OUT}/theme-${theme}-${label}.png`, fullPage: label === 'desktop' });
+    await page.close();
+    console.log(`shot theme-${theme}-${label}`);
+  }
   await ctx.close();
 }
 
