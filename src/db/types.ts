@@ -1,5 +1,6 @@
 import type { Equipment, MovementPattern, MuscleGroup } from '@/data/muscles';
 import type { Sex } from '@/data/strengthStandards';
+import type { ThemeName } from '@/lib/theme';
 import type { Unit } from '@/lib/units';
 
 export interface Exercise {
@@ -61,6 +62,10 @@ export interface Profile {
   units: Unit;
   restDefaultSec: number;
   name?: string;
+  /** UI theme id (see src/lib/theme.ts). Defaults to 'hud'. */
+  theme?: ThemeName;
+  /** Manual personal-record 1RM per exercise id, in kg. */
+  prs?: Record<string, number>;
   /** Last-modified epoch ms — used for cloud sync (last-write-wins). */
   updatedAt?: number;
 }
