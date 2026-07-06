@@ -7,3 +7,5 @@ test-results
 *.log
 .DS_Store
 *.tsbuildinfo
+.env
+.env.local

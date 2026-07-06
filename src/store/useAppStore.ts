@@ -3,6 +3,7 @@ import { db } from '@/db/db';
 import { DEFAULT_PROFILE, ensureSeeded } from '@/db/seed';
 import type { LoggedSet, Profile, Workout, WorkoutEntry } from '@/db/types';
 import { uid } from '@/lib/id';
+import { persistProfile, persistWorkout, removeWorkout } from '@/sync/local';
 
 const REST_KEY = 'stride.restEndsAt';
 
@@ -14,6 +15,7 @@ interface AppState {
   restDurationSec: number;
 
   init: () => Promise<void>;
+  reloadFromDb: () => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
 
   startWorkout: (opts?: Partial<Pick<Workout, 'title' | 'programId' | 'weekIndex' | 'dayIndex'>>) => Promise<void>;
@@ -35,7 +37,7 @@ interface AppState {
 }
 
 function persistActive(w: Workout | null) {
-  if (w) void db.workouts.put(w);
+  if (w) void persistWorkout(w);
 }
 
 function newSet(partial?: Partial<LoggedSet>): LoggedSet {
@@ -76,7 +78,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateProfile: async (patch) => {
     const profile = { ...get().profile, ...patch };
     set({ profile });
-    await db.profile.put(profile);
+    await persistProfile(profile);
+  },
+
+  reloadFromDb: async () => {
+    const profile = (await db.profile.get('me')) ?? DEFAULT_PROFILE;
+    const a = get().active;
+    // Refresh the active session from the DB only if it still exists unfinished.
+    let active = a;
+    if (a) {
+      const fresh = await db.workouts.get(a.id);
+      active = fresh && fresh.finishedAt === undefined ? fresh : a;
+    }
+    set({ profile, active });
   },
 
   startWorkout: async (opts) => {
@@ -214,7 +228,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       .map((e) => ({ ...e, sets: e.sets.filter((s) => s.reps > 0 || s.weightKg > 0) }))
       .filter((e) => e.sets.length > 0);
     const finished: Workout = { ...a, entries, finishedAt: Date.now() };
-    await db.workouts.put(finished);
+    await persistWorkout(finished, true);
     set({ active: null, restEndsAt: null });
     localStorage.removeItem(REST_KEY);
     return finished.id;
@@ -223,7 +237,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   discardWorkout: async () => {
     const a = get().active;
     if (!a) return;
-    await db.workouts.delete(a.id);
+    await removeWorkout(a.id);
     set({ active: null, restEndsAt: null });
     localStorage.removeItem(REST_KEY);
   },

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AccountPanel } from '@/components/AccountPanel';
 import { PageTitle } from '@/components/common';
 import { Chip, Field, HudButton, HudInput, HudPanel } from '@/components/hud';
 import { db } from '@/db/db';
@@ -35,6 +36,8 @@ export function ProfilePage() {
   return (
     <div>
       <PageTitle title="Profile & Settings" sub="Used for units, timers, and strength standards." />
+
+      <AccountPanel />
 
       <HudPanel className="mb-4 p-5" label="ATHLETE">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -130,7 +133,8 @@ export function ProfilePage() {
 
       <HudPanel className="p-5" label="DATA" bracketColor="var(--down)">
         <p className="mb-3 text-[12px] text-[var(--ink-dim)]">
-          Everything is stored locally in your browser (IndexedDB). Nothing leaves your device.
+          Everything is stored locally in your browser (IndexedDB) and works fully offline. If you
+          enable Cloud Sync and sign in, your data is also synced to your Supabase account.
         </p>
         <div className="flex flex-wrap gap-2">
           <HudButton onClick={() => void loadDemoData().then(() => location.assign('#/'))}>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { PageTitle } from '@/components/common';
 import { Chip, Field, HudButton, HudInput, HudPanel, HudSelect, Modal, Tag } from '@/components/hud';
 import { IconPlus } from '@/components/icons';
-import { db } from '@/db/db';
+import { persistCustomExercise } from '@/sync/local';
 import {
   EQUIPMENT,
   MUSCLE_GROUPS,
@@ -144,7 +144,7 @@ function AddExerciseModal({ open, onClose }: { open: boolean; onClose: () => voi
       bigLift: false,
       custom: true,
     };
-    await db.exercises.add(ex);
+    await persistCustomExercise(ex);
     setName('');
     onClose();
   };
