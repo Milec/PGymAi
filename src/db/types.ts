@@ -13,6 +13,8 @@ export interface Exercise {
   bigLift: boolean;
   standardKey?: string;
   custom?: boolean;
+  /** Last-modified epoch ms — used for cloud sync (last-write-wins). */
+  updatedAt?: number;
 }
 
 export interface LoggedSet {
@@ -47,6 +49,8 @@ export interface Workout {
   dayIndex?: number;
   /** Accumulated active duration in ms (excludes paused-out time on resume). */
   bodyweightKgAtTime?: number;
+  /** Last-modified epoch ms — used for cloud sync (last-write-wins). */
+  updatedAt?: number;
 }
 
 export interface Profile {
@@ -57,6 +61,8 @@ export interface Profile {
   units: Unit;
   restDefaultSec: number;
   name?: string;
+  /** Last-modified epoch ms — used for cloud sync (last-write-wins). */
+  updatedAt?: number;
 }
 
 /** A persisted, imported program (raw validated JSON). */
@@ -69,6 +75,20 @@ export interface StoredProgram {
   data: unknown; // the validated Program object
   importedAt: number;
   active?: boolean;
+  /** Last-modified epoch ms — used for cloud sync (last-write-wins). */
+  updatedAt?: number;
+}
+
+/** Sync entity kinds that participate in cloud sync. */
+export type SyncEntity = 'workouts' | 'programs' | 'custom_exercises';
+
+/** A tombstone recording a local deletion so it can propagate to other devices. */
+export interface Deletion {
+  /** Composite key `${entity}:${entityId}`. */
+  key: string;
+  entity: SyncEntity;
+  entityId: string;
+  deletedAt: number;
 }
 
 /** Per-program progress cursor. */

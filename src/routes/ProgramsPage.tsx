@@ -9,6 +9,7 @@ import type { StoredProgram, Workout } from '@/db/types';
 import { useExercises, useFinishedWorkouts } from '@/hooks/useLive';
 import { uid } from '@/lib/id';
 import { buildProgramDay } from '@/lib/programRun';
+import { persistProgram, removeProgram } from '@/sync/local';
 import { EXAMPLE_PROGRAMS } from '@/fixtures/programs';
 import { parseProgramJSON, type Program } from '@/schema/program';
 import { useAppStore } from '@/store/useAppStore';
@@ -28,7 +29,7 @@ export function ProgramsPage() {
       data: program,
       importedAt: Date.now(),
     };
-    await db.programs.add(stored);
+    await persistProgram(stored);
   };
 
   return (
@@ -91,16 +92,15 @@ export function ProgramsPage() {
 function ProgramRow({ program, onView }: { program: StoredProgram; onView: () => void }) {
   const active = program.active;
   const setActive = async () => {
-    await db.transaction('rw', db.programs, async () => {
-      const all = await db.programs.toArray();
-      for (const p of all) {
-        if (p.active) await db.programs.update(p.id, { active: false });
-      }
-      await db.programs.update(program.id, { active: !active });
-    });
+    const all = await db.programs.toArray();
+    // Deactivate any other active program, then toggle this one.
+    for (const p of all) {
+      if (p.active && p.id !== program.id) await persistProgram({ ...p, active: false });
+    }
+    await persistProgram({ ...program, active: !active });
   };
   const remove = async () => {
-    if (confirm(`Delete program "${program.name}"?`)) await db.programs.delete(program.id);
+    if (confirm(`Delete program "${program.name}"?`)) await removeProgram(program.id);
   };
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify(program.data, null, 2)], { type: 'application/json' });

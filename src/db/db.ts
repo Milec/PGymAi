@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type {
+  Deletion,
   Exercise,
   Profile,
   ProgramProgress,
@@ -13,6 +14,7 @@ export class StrideDB extends Dexie {
   profile!: Table<Profile, string>;
   programs!: Table<StoredProgram, string>;
   programProgress!: Table<ProgramProgress, string>;
+  deletions!: Table<Deletion, string>;
 
   constructor() {
     super('stride-db');
@@ -22,6 +24,15 @@ export class StrideDB extends Dexie {
       profile: 'id',
       programs: 'id, importedAt, active',
       programProgress: 'programId',
+    });
+    // v2 adds cloud-sync support: updatedAt indexes + a deletions tombstone log.
+    this.version(2).stores({
+      exercises: 'id, name, equipment, pattern, category, bigLift, custom, updatedAt',
+      workouts: 'id, startedAt, finishedAt, programId, updatedAt',
+      profile: 'id',
+      programs: 'id, importedAt, active, updatedAt',
+      programProgress: 'programId',
+      deletions: 'key, entity, deletedAt',
     });
   }
 }
