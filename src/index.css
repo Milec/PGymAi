@@ -1,0 +1,190 @@
+@import './styles/fonts.css';
+@import './styles/tokens.css';
+@import 'tailwindcss';
+
+@theme {
+  --color-space-0: #05070f;
+  --color-space-1: #070b17;
+  --color-space-2: #0b1120;
+  --color-space-3: #0f1a30;
+  --color-cyan: #38e1ff;
+  --color-violet: #a26bff;
+  --color-amber: #ffb020;
+  --color-up: #38f7b0;
+  --color-down: #ff5a72;
+  --color-ink: #e8f3ff;
+  --color-ink-dim: #9fb3d1;
+  --color-ink-faint: #5c6f8f;
+  --font-head: 'Orbitron', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-body: 'Space Grotesk', sans-serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--space-0);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-head {
+    font-family: var(--font-head);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .mono,
+  .font-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--cyan-dim);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::selection {
+    background: rgba(56, 225, 255, 0.3);
+  }
+  input,
+  select,
+  textarea,
+  button {
+    font-family: inherit;
+  }
+}
+
+/* Compact numeric input cell used in the set logger */
+.cell {
+  font-family: var(--font-mono);
+  width: 100%;
+  min-height: 40px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  background: rgba(5, 9, 20, 0.5);
+  padding: 0 8px;
+  color: var(--ink);
+  text-align: center;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+.cell:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px rgba(56, 225, 255, 0.25);
+}
+/* hide number spinners */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Chamfered corners via clip-path polygon */
+.chamfer {
+  clip-path: polygon(
+    var(--chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 var(--chamfer)
+  );
+}
+
+/* ---- Motion ---- */
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(-8%, -6%, 0) scale(1.1);
+  }
+  50% {
+    transform: translate3d(8%, 6%, 0) scale(1.25);
+  }
+  100% {
+    transform: translate3d(-8%, -6%, 0) scale(1.1);
+  }
+}
+@keyframes sheen {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  60%,
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+  }
+}
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes flash-up {
+  0% {
+    color: var(--up);
+    text-shadow: 0 0 14px var(--up);
+  }
+  100% {
+    color: inherit;
+    text-shadow: none;
+  }
+}
+@keyframes flash-down {
+  0% {
+    color: var(--down);
+    text-shadow: 0 0 14px var(--down);
+  }
+  100% {
+    color: inherit;
+    text-shadow: none;
+  }
+}
+.flash-up {
+  animation: flash-up 0.9s ease-out;
+}
+.flash-down {
+  animation: flash-down 0.9s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

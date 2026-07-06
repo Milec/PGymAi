@@ -1,0 +1,42 @@
+/* STRIDE — "Starship HUD" design tokens */
+:root {
+  /* Core palette */
+  --space-0: #05070f; /* deepest navy */
+  --space-1: #070b17;
+  --space-2: #0b1120;
+  --space-3: #0f1a30;
+
+  --cyan: #38e1ff; /* primary */
+  --cyan-dim: #1aa7c4;
+  --violet: #a26bff; /* secondary */
+  --violet-dim: #6f43c0;
+  --amber: #ffb020; /* accent */
+  --up: #38f7b0; /* green delta */
+  --down: #ff5a72; /* red delta */
+
+  --ink: #e8f3ff; /* primary text */
+  --ink-dim: #9fb3d1; /* muted text */
+  --ink-faint: #5c6f8f;
+
+  --line: rgba(120, 200, 255, 0.16);
+  --line-strong: rgba(120, 200, 255, 0.35);
+
+  /* Panel glass */
+  --glass: rgba(14, 26, 48, 0.55);
+  --glass-hi: rgba(20, 36, 64, 0.7);
+  --panel-blur: 14px;
+
+  /* Glows */
+  --glow-cyan: 0 0 18px rgba(56, 225, 255, 0.45);
+  --glow-violet: 0 0 18px rgba(162, 107, 255, 0.4);
+  --glow-amber: 0 0 16px rgba(255, 176, 32, 0.45);
+
+  /* Geometry */
+  --chamfer: 14px;
+  --radius: 4px;
+
+  /* Fonts */
+  --font-head: 'Orbitron', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-body: 'Space Grotesk', system-ui, sans-serif;
+}
