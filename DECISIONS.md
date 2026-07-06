@@ -136,3 +136,32 @@ degrade accuracy and the UI notes this.
 - Tailwind v4 CSS-first config (`@theme`, `@import "tailwindcss"`); design tokens
   as CSS variables in `src/styles/tokens.css`.
 - Screenshot verification via Playwright/Chromium into `artifacts/screenshots/`.
+- **Fonts**: Orbitron and Space Grotesk are variable fonts on Google Fonts, so
+  the latin-subset `.woff2` is a single shared file per family (identical bytes
+  across weights) — self-hosted, precached by Workbox for offline use.
+- **HudPanel**: the chamfer `clip-path` is applied to an inner absolutely-
+  positioned glass layer so edge labels and corner brackets are never clipped.
+- **Routing**: `HashRouter` (no server rewrites needed offline) + route-level
+  `React.lazy` code-splitting; Recharts is isolated in its own chunk.
+- **Seeding**: `ensureSeeded` is guarded by an in-flight promise and uses
+  `bulkPut` so React StrictMode's double-invoke can't race the first seed.
+- **Timers**: rest + duration timers store absolute timestamps (localStorage /
+  the workout record) and recompute on resume, surviving backgrounding/reload.
+
+## 7. Verification Results (Definition of Done)
+
+Verified locally against the production build (`pnpm preview`):
+
+- `pnpm build` — succeeds, TypeScript strict, **0 type errors**.
+- `pnpm lint` — ESLint **clean** (`--max-warnings=0`).
+- `pnpm test` — **48 Vitest unit tests pass** (e1RM, progression, standards,
+  import validation, analytics, units).
+- `pnpm e2e` — **6 Playwright smoke tests pass** (boot, all routes, library
+  search, full logging flow, import validation, program follow).
+- **Lighthouse** (Chromium, production preview): Performance **93**,
+  Accessibility **100**, Best-Practices **100**.
+- **PWA**: valid manifest (standalone, maskable icon, theme/bg `#05070f`),
+  service worker registers and activates, and the app + IndexedDB data remain
+  **fully usable offline** (verified by reloading with the network disabled).
+- Screenshots of every screen at 390×844 and 1440×900 in
+  `artifacts/screenshots/`.
