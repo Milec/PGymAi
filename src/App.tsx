@@ -12,6 +12,7 @@ import {
 } from '@/components/icons';
 import { WorkoutTimerBadge } from '@/components/WorkoutTimerBadge';
 import { useAppStore } from '@/store/useAppStore';
+import { useAuthStore } from '@/store/useAuthStore';
 
 // Route-level code splitting keeps the initial bundle lean.
 const Dashboard = lazy(() => import('@/routes/Dashboard').then((m) => ({ default: m.Dashboard })));
@@ -61,10 +62,12 @@ function Brand() {
 export default function App() {
   const ready = useAppStore((s) => s.ready);
   const init = useAppStore((s) => s.init);
+  const authInit = useAuthStore((s) => s.init);
 
   useEffect(() => {
-    void init();
-  }, [init]);
+    // Seed + load local data first, then bring up auth/sync (which reads the DB).
+    void init().then(() => authInit());
+  }, [init, authInit]);
 
   if (!ready) {
     return (

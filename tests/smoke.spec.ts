@@ -78,6 +78,19 @@ test('program import validates and rejects bad JSON', async ({ page }) => {
   await expect(page.getByText(/VALIDATION FAILED/i)).toBeVisible();
 });
 
+test('cloud sync account panel and auth modal render', async ({ page }) => {
+  await freshApp(page);
+  await page.goto('/#/profile');
+  await expect(page.getByText('CLOUD SYNC').first()).toBeVisible();
+  const signIn = page.getByRole('button', { name: /sign in \/ create account/i });
+  if (await signIn.isVisible().catch(() => false)) {
+    await signIn.click();
+    await expect(page.getByRole('heading', { name: /cloud sync/i })).toBeVisible();
+    await expect(page.getByPlaceholder('you@example.com')).toBeVisible();
+    await expect(page.getByRole('button', { name: /magic link/i })).toBeVisible();
+  }
+});
+
 test('adding an example program then following it works', async ({ page }) => {
   await freshApp(page);
   await page.goto('/#/programs');
