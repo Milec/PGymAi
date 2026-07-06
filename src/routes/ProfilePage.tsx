@@ -5,13 +5,16 @@ import { Chip, Field, HudButton, HudInput, HudPanel } from '@/components/hud';
 import { db } from '@/db/db';
 import { loadDemoData } from '@/dev/demoData';
 import type { Sex } from '@/data/strengthStandards';
+import { THEMES } from '@/lib/theme';
 import { formatWeight, fromKg, toKg, type Unit } from '@/lib/units';
 import { useAppStore } from '@/store/useAppStore';
 
 export function ProfilePage() {
   const profile = useAppStore((s) => s.profile);
   const updateProfile = useAppStore((s) => s.updateProfile);
+  const setTheme = useAppStore((s) => s.setTheme);
   const unit = profile.units;
+  const activeTheme = profile.theme ?? 'hud';
 
   const [bw, setBw] = useState(() => formatWeight(profile.bodyweightKg, unit));
 
@@ -38,6 +41,46 @@ export function ProfilePage() {
       <PageTitle title="Profile & Settings" sub="Used for units, timers, and strength standards." />
 
       <AccountPanel />
+
+      <HudPanel className="mb-4 p-5" label="THEME" bracketColor="var(--violet)">
+        <p className="mb-3 text-[12px] text-[var(--ink-dim)]">Skin the whole app.</p>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {THEMES.map((t) => {
+            const on = activeTheme === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => void setTheme(t.id)}
+                className="chamfer relative flex flex-col gap-2 p-3 text-left transition-all"
+                style={{
+                  border: `1px solid ${on ? 'var(--cyan)' : 'var(--line)'}`,
+                  background: on ? 'rgba(56,225,255,0.06)' : 'transparent',
+                  boxShadow: on ? '0 0 14px rgba(56,225,255,0.18)' : 'none',
+                }}
+              >
+                <span className="flex gap-1">
+                  {t.swatch.map((c, i) => (
+                    <span
+                      key={i}
+                      className="h-5 w-5 rounded-full"
+                      style={{ background: c, border: '1px solid rgba(255,255,255,0.15)' }}
+                    />
+                  ))}
+                </span>
+                <span className="font-head text-[10px] tracking-[0.12em] text-[var(--ink)]">
+                  {t.label}
+                </span>
+                <span className="text-[10px] leading-tight text-[var(--ink-faint)]">{t.blurb}</span>
+                {on && (
+                  <span className="font-head absolute right-2 top-2 text-[8px] tracking-widest text-[var(--cyan)]">
+                    ●
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </HudPanel>
 
       <HudPanel className="mb-4 p-5" label="ATHLETE">
         <div className="grid gap-4 sm:grid-cols-2">

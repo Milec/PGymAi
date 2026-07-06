@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { PageTitle, EmptyState } from '@/components/common';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { RestTimer } from '@/components/RestTimer';
-import { HudButton, HudPanel, Readout, Tag } from '@/components/hud';
+import { Chip, HudButton, HudPanel, HudInput, Readout, Tag } from '@/components/hud';
 import { IconCheck, IconLift, IconPlus, IconTrash } from '@/components/icons';
-import { useExerciseMap } from '@/hooks/useLive';
+import { useExerciseMap, useFinishedWorkouts } from '@/hooks/useLive';
 import { useNow } from '@/hooks/useNow';
 import type { LoggedSet, WorkoutEntry } from '@/db/types';
+import { bestE1rm } from '@/lib/analytics';
 import { e1rmBreakdown } from '@/lib/e1rm';
+import { rpePercent } from '@/lib/progression';
 import { formatDuration } from '@/lib/time';
-import { formatWeight, fromKg, toKg } from '@/lib/units';
+import { formatWeight, fromKg, roundToIncrement, toKg, type Unit } from '@/lib/units';
 import { useAppStore } from '@/store/useAppStore';
 
 export function WorkoutPage() {
@@ -129,6 +131,7 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
   const removeEntry = useAppStore((s) => s.removeEntry);
   const addSet = useAppStore((s) => s.addSet);
   const setEntryNotes = useAppStore((s) => s.setEntryNotes);
+  const updateSet = useAppStore((s) => s.updateSet);
   const ex = exMap.get(entry.exerciseId);
 
   const best = useMemo(() => {
@@ -141,6 +144,9 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
     return b;
   }, [entry.sets]);
   const profile = useAppStore((s) => s.profile);
+  const finished = useFinishedWorkouts();
+  // Effective 1RM: a manually-entered PR wins, else best estimated 1RM from history.
+  const oneRmKg = profile.prs?.[entry.exerciseId] || bestE1rm(finished, entry.exerciseId);
 
   return (
     <HudPanel className="p-4" label={ex?.equipment.toUpperCase()}>
@@ -174,6 +180,16 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
         </div>
       </div>
 
+      <AutoFill
+        oneRmKg={oneRmKg}
+        unit={profile.units}
+        onApply={(weightKg, reps) => {
+          for (const s of entry.sets) {
+            updateSet(entry.id, s.id, reps != null ? { weightKg, reps } : { weightKg });
+          }
+        }}
+      />
+
       {/* header row */}
       <div className="mono grid grid-cols-[24px_1fr_1fr_46px_40px_26px] gap-2 px-1 pb-1 text-[9px] uppercase tracking-wider text-[var(--ink-faint)]">
         <span>#</span>
@@ -203,6 +219,110 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
         className="mono mt-3 w-full rounded-[3px] border border-[var(--line)] bg-transparent px-2 py-1.5 text-[12px] text-[var(--ink-dim)] outline-none focus:border-[var(--cyan)]"
       />
     </HudPanel>
+  );
+}
+
+function AutoFill({
+  oneRmKg,
+  unit,
+  onApply,
+}: {
+  oneRmKg: number;
+  unit: Unit;
+  onApply: (weightKg: number, reps?: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'percent' | 'rpe'>('percent');
+  const [percent, setPercent] = useState('80');
+  const [rpe, setRpe] = useState('8');
+  const [reps, setReps] = useState('5');
+
+  const hasPr = oneRmKg > 0;
+  const computed = (() => {
+    if (!hasPr) return 0;
+    if (mode === 'percent') {
+      const p = parseFloat(percent);
+      if (!p) return 0;
+      return roundToIncrement((p / 100) * oneRmKg, unit);
+    }
+    const r = parseFloat(rpe);
+    const n = parseInt(reps);
+    if (!r || !n) return 0;
+    return roundToIncrement(rpePercent(r, n) * oneRmKg, unit);
+  })();
+
+  return (
+    <div className="mb-3">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="font-head flex w-full items-center justify-between rounded-[3px] border border-[var(--line)] px-2.5 py-1.5 text-[9px] tracking-widest text-[var(--ink-dim)] transition-colors hover:border-[var(--cyan)]"
+      >
+        <span>⚡ AUTO-FILL WEIGHT</span>
+        <span className="mono text-[var(--ink-faint)]">
+          {hasPr ? `1RM ${formatWeight(oneRmKg, unit)} ${unit}` : 'no 1RM'} {open ? '▲' : '▼'}
+        </span>
+      </button>
+
+      {open && (
+        <div className="mt-2 rounded-[3px] border border-[var(--line)] p-3">
+          {!hasPr ? (
+            <p className="text-[11px] leading-relaxed text-[var(--ink-faint)]">
+              No 1RM yet. Set one in the Library (1RM PR) or log this lift once, then STRIDE can
+              compute working weights.
+            </p>
+          ) : (
+            <>
+              <div className="mb-2 flex gap-2">
+                <Chip active={mode === 'percent'} onClick={() => setMode('percent')}>
+                  %1RM
+                </Chip>
+                <Chip active={mode === 'rpe'} onClick={() => setMode('rpe')} color="var(--violet)">
+                  RPE
+                </Chip>
+              </div>
+              <div className="flex items-end gap-2">
+                {mode === 'percent' ? (
+                  <label className="flex-1">
+                    <span className="font-head text-[9px] tracking-widest text-[var(--ink-faint)]">PERCENT</span>
+                    <HudInput type="number" inputMode="numeric" value={percent} onChange={(e) => setPercent(e.target.value)} />
+                  </label>
+                ) : (
+                  <>
+                    <label className="flex-1">
+                      <span className="font-head text-[9px] tracking-widest text-[var(--ink-faint)]">RPE</span>
+                      <HudInput type="number" inputMode="decimal" step="0.5" value={rpe} onChange={(e) => setRpe(e.target.value)} />
+                    </label>
+                    <label className="flex-1">
+                      <span className="font-head text-[9px] tracking-widest text-[var(--ink-faint)]">REPS</span>
+                      <HudInput type="number" inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} />
+                    </label>
+                  </>
+                )}
+                <div className="text-right">
+                  <div className="font-head text-[8px] tracking-widest text-[var(--ink-faint)]">WEIGHT</div>
+                  <div className="mono text-lg font-semibold text-[var(--amber)]">
+                    {computed ? formatWeight(computed, unit) : '—'}
+                  </div>
+                </div>
+              </div>
+              <HudButton
+                variant="accent"
+                sheen={false}
+                className="mt-3 w-full !min-h-[38px]"
+                disabled={!computed}
+                onClick={() => {
+                  if (!computed) return;
+                  onApply(computed, mode === 'rpe' ? parseInt(reps) : undefined);
+                  setOpen(false);
+                }}
+              >
+                Fill all sets{mode === 'rpe' ? ' + reps' : ''}
+              </HudButton>
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

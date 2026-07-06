@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts';
 import { PageTitle, EmptyState, StatTile } from '@/components/common';
-import { HudPanel, HudSelect } from '@/components/hud';
+import { Chip, HudPanel, HudSelect } from '@/components/hud';
 import { useExerciseMap, useFinishedWorkouts } from '@/hooks/useLive';
 import { buildExerciseSeries } from '@/lib/analytics';
 import type { E1rmFormula } from '@/lib/e1rm';
@@ -19,12 +19,12 @@ import { formatWeight, fromKg } from '@/lib/units';
 import { useAppStore } from '@/store/useAppStore';
 
 const tooltipStyle: React.CSSProperties = {
-  background: 'rgba(7,11,23,0.95)',
-  border: '1px solid rgba(120,200,255,0.35)',
+  background: 'var(--space-1)',
+  border: '1px solid var(--line-strong)',
   borderRadius: 4,
   fontFamily: 'IBM Plex Mono, monospace',
   fontSize: 11,
-  color: '#e8f3ff',
+  color: 'var(--ink)',
 };
 
 export function ProgressPage() {
@@ -33,6 +33,7 @@ export function ProgressPage() {
   const profile = useAppStore((s) => s.profile);
   const unit = profile.units;
   const [formula, setFormula] = useState<E1rmFormula>('epley');
+  const [months, setMonths] = useState<number>(0); // 0 = all time
 
   // Exercises that actually have logged history.
   const loggedIds = useMemo(() => {
@@ -52,16 +53,19 @@ export function ProgressPage() {
     [workouts, exerciseId, formula],
   );
 
-  const chartData = useMemo(
-    () =>
-      series?.points.map((p) => ({
-        date: new Date(p.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-        e1rm: Math.round(fromKg(p.e1rmKg, unit) * 10) / 10,
-        top: Math.round(fromKg(p.weightKg, unit) * 10) / 10,
-        volume: Math.round(fromKg(p.volumeKg, unit)),
-      })) ?? [],
-    [series, unit],
-  );
+  const chartData = useMemo(() => {
+    const since = months > 0 ? Date.now() - months * 30 * 86400000 : 0;
+    return (
+      series?.points
+        .filter((p) => p.ts >= since)
+        .map((p) => ({
+          date: new Date(p.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          e1rm: Math.round(fromKg(p.e1rmKg, unit) * 10) / 10,
+          top: Math.round(fromKg(p.weightKg, unit) * 10) / 10,
+          volume: Math.round(fromKg(p.volumeKg, unit)),
+        })) ?? []
+    );
+  }, [series, unit, months]);
 
   if (loggedIds.length === 0) {
     return (
@@ -102,6 +106,18 @@ export function ProgressPage() {
             </option>
           ))}
         </HudSelect>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {([
+            [3, '3M'],
+            [6, '6M'],
+            [12, '1Y'],
+            [0, 'All'],
+          ] as const).map(([m, label]) => (
+            <Chip key={label} active={months === m} onClick={() => setMonths(m)} color="var(--amber)">
+              {label}
+            </Chip>
+          ))}
+        </div>
       </HudPanel>
 
       {series && (
@@ -118,15 +134,15 @@ export function ProgressPage() {
                 <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                   <defs>
                     <linearGradient id="e1rmGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#ffb020" stopOpacity={0.5} />
-                      <stop offset="100%" stopColor="#ffb020" stopOpacity={0.02} />
+                      <stop offset="0%" stopColor="var(--amber)" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="var(--amber)" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="#132038" strokeDasharray="2 4" />
-                  <XAxis dataKey="date" tick={{ fill: '#5c6f8f', fontSize: 10 }} tickLine={false} axisLine={{ stroke: '#1a2740' }} />
-                  <YAxis tick={{ fill: '#5c6f8f', fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
-                  <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#ffb020' }} formatter={(v) => [`${Number(v)} ${unit}`, 'e1RM']} />
-                  <Area type="monotone" dataKey="e1rm" stroke="#ffb020" strokeWidth={2} fill="url(#e1rmGrad)" dot={{ r: 2, fill: '#ffb020' }} />
+                  <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="2 4" />
+                  <XAxis dataKey="date" tick={{ fill: 'var(--ink-faint)', fontSize: 10 }} tickLine={false} axisLine={{ stroke: 'var(--chart-axis)' }} />
+                  <YAxis tick={{ fill: 'var(--ink-faint)', fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
+                  <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: 'var(--amber)' }} formatter={(v) => [`${Number(v)} ${unit}`, 'e1RM']} />
+                  <Area type="monotone" dataKey="e1rm" stroke="var(--amber)" strokeWidth={2} fill="url(#e1rmGrad)" dot={{ r: 2, fill: 'var(--amber)' }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -137,11 +153,11 @@ export function ProgressPage() {
               <div className="h-48 w-full pt-3">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                    <CartesianGrid stroke="#132038" strokeDasharray="2 4" />
-                    <XAxis dataKey="date" tick={{ fill: '#5c6f8f', fontSize: 10 }} tickLine={false} axisLine={{ stroke: '#1a2740' }} />
-                    <YAxis tick={{ fill: '#5c6f8f', fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
+                    <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="2 4" />
+                    <XAxis dataKey="date" tick={{ fill: 'var(--ink-faint)', fontSize: 10 }} tickLine={false} axisLine={{ stroke: 'var(--chart-axis)' }} />
+                    <YAxis tick={{ fill: 'var(--ink-faint)', fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
                     <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${Number(v)} ${unit}`, 'Top set']} />
-                    <Line type="monotone" dataKey="top" stroke="#38e1ff" strokeWidth={2} dot={{ r: 2, fill: '#38e1ff' }} />
+                    <Line type="monotone" dataKey="top" stroke="var(--cyan)" strokeWidth={2} dot={{ r: 2, fill: 'var(--cyan)' }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -153,15 +169,15 @@ export function ProgressPage() {
                   <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                     <defs>
                       <linearGradient id="volGrad2" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#a26bff" stopOpacity={0.5} />
-                        <stop offset="100%" stopColor="#a26bff" stopOpacity={0.02} />
+                        <stop offset="0%" stopColor="var(--violet)" stopOpacity={0.5} />
+                        <stop offset="100%" stopColor="var(--violet)" stopOpacity={0.02} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid stroke="#132038" strokeDasharray="2 4" />
-                    <XAxis dataKey="date" tick={{ fill: '#5c6f8f', fontSize: 10 }} tickLine={false} axisLine={{ stroke: '#1a2740' }} />
-                    <YAxis tick={{ fill: '#5c6f8f', fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
+                    <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="2 4" />
+                    <XAxis dataKey="date" tick={{ fill: 'var(--ink-faint)', fontSize: 10 }} tickLine={false} axisLine={{ stroke: 'var(--chart-axis)' }} />
+                    <YAxis tick={{ fill: 'var(--ink-faint)', fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
                     <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${Number(v)} ${unit}`, 'Volume']} />
-                    <Area type="monotone" dataKey="volume" stroke="#a26bff" strokeWidth={2} fill="url(#volGrad2)" dot={false} />
+                    <Area type="monotone" dataKey="volume" stroke="var(--violet)" strokeWidth={2} fill="url(#volGrad2)" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

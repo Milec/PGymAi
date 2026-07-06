@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Bar,
@@ -12,7 +12,7 @@ import {
   XAxis,
 } from 'recharts';
 import { PageTitle, StatTile, EmptyState } from '@/components/common';
-import { HudButton, HudPanel } from '@/components/hud';
+import { Chip, HudButton, HudPanel } from '@/components/hud';
 import { IconFire, IconLift, IconChart } from '@/components/icons';
 import { MUSCLE_LABEL } from '@/data/muscles';
 import { useExerciseMap, useFinishedWorkouts } from '@/hooks/useLive';
@@ -34,7 +34,8 @@ export function Dashboard() {
   const startWorkout = useAppStore((s) => s.startWorkout);
   const unit = profile.units;
 
-  const weeks = useMemo(() => weeklyVolume(workouts, 8), [workouts]);
+  const [volWeeks, setVolWeeks] = useState(8);
+  const weeks = useMemo(() => weeklyVolume(workouts, volWeeks), [workouts, volWeeks]);
   const streak = useMemo(() => computeStreak(workouts), [workouts]);
   const prs = useMemo(() => recentPRs(workouts, exMap, 6), [workouts, exMap]);
   const balance = useMemo(() => muscleBalance(workouts, exMap, 28), [workouts, exMap]);
@@ -88,24 +89,31 @@ export function Dashboard() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <HudPanel className="p-4" label="WEEKLY VOLUME">
-          <div className="h-52 w-full pt-3">
+          <div className="mb-1 flex flex-wrap justify-end gap-1.5 pt-1">
+            {([4, 8, 12, 26, 52] as const).map((w) => (
+              <Chip key={w} active={volWeeks === w} onClick={() => setVolWeeks(w)}>
+                {w < 52 ? `${w}w` : '1y'}
+              </Chip>
+            ))}
+          </div>
+          <div className="h-48 w-full pt-1">
             {workouts.length === 0 ? (
               <Centered>Log a session to chart your volume.</Centered>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={volChartData} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
-                  <XAxis dataKey="label" tick={{ fill: '#5c6f8f', fontSize: 10 }} axisLine={{ stroke: '#1a2740' }} tickLine={false} />
+                  <XAxis dataKey="label" tick={{ fill: 'var(--ink-faint)', fontSize: 10 }} axisLine={{ stroke: 'var(--chart-axis)' }} tickLine={false} />
                   <Tooltip
                     cursor={{ fill: 'rgba(56,225,255,0.06)' }}
                     contentStyle={tooltipStyle}
-                    labelStyle={{ color: '#38e1ff' }}
+                    labelStyle={{ color: 'var(--cyan)' }}
                     formatter={(v) => [`${Number(v).toLocaleString()} ${unit}`, 'Volume']}
                   />
                   <Bar dataKey="vol" fill="url(#volGrad)" radius={[2, 2, 0, 0]} />
                   <defs>
                     <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#38e1ff" stopOpacity={0.95} />
-                      <stop offset="100%" stopColor="#a26bff" stopOpacity={0.35} />
+                      <stop offset="0%" stopColor="var(--cyan)" stopOpacity={0.95} />
+                      <stop offset="100%" stopColor="var(--violet)" stopOpacity={0.35} />
                     </linearGradient>
                   </defs>
                 </BarChart>
@@ -121,9 +129,9 @@ export function Dashboard() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={radarData} outerRadius="72%">
-                  <PolarGrid stroke="#1a2740" />
-                  <PolarAngleAxis dataKey="muscle" tick={{ fill: '#9fb3d1', fontSize: 9 }} />
-                  <Radar dataKey="sets" stroke="#a26bff" fill="#a26bff" fillOpacity={0.35} />
+                  <PolarGrid stroke="var(--chart-axis)" />
+                  <PolarAngleAxis dataKey="muscle" tick={{ fill: 'var(--ink-dim)', fontSize: 9 }} />
+                  <Radar dataKey="sets" stroke="var(--violet)" fill="var(--violet)" fillOpacity={0.35} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${Number(v)} sets`, '']} />
                 </RadarChart>
               </ResponsiveContainer>
@@ -163,12 +171,12 @@ export function Dashboard() {
 }
 
 const tooltipStyle: React.CSSProperties = {
-  background: 'rgba(7,11,23,0.95)',
-  border: '1px solid rgba(120,200,255,0.35)',
+  background: 'var(--space-1)',
+  border: '1px solid var(--line-strong)',
   borderRadius: 4,
   fontFamily: 'IBM Plex Mono, monospace',
   fontSize: 11,
-  color: '#e8f3ff',
+  color: 'var(--ink)',
 };
 
 function Centered({ children }: { children: React.ReactNode }) {
