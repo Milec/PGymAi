@@ -24,6 +24,7 @@ test('every primary route renders', async ({ page }) => {
     ['/#/progress', /progress/i],
     ['/#/strength', /strength standards/i],
     ['/#/programs', /programs/i],
+    ['/#/history', /training log/i],
     ['/#/profile', /profile & settings/i],
   ];
   for (const [route, heading] of routes) {
@@ -120,6 +121,24 @@ test('library PR can be set and drives auto-fill in a workout', async ({ page })
 
   const firstWeight = page.locator('input[inputmode="decimal"]').first();
   await expect(firstWeight).toHaveValue('150');
+});
+
+test('training log shows sessions and calendar', async ({ page }) => {
+  await freshApp(page);
+  // Seed a training history via the app's own demo loader.
+  await page.evaluate(async () => {
+    const m = await import('/src/dev/demoData.ts');
+    await m.loadDemoData();
+  });
+  await page.goto('/#/history');
+  await expect(page.getByRole('heading', { name: /training log/i })).toBeVisible();
+  await expect(page.getByText('CALENDAR')).toBeVisible();
+
+  // A session card is listed; expanding it reveals per-exercise set detail.
+  const card = page.getByText(/Squat Focus|Pull Focus/).first();
+  await expect(card).toBeVisible();
+  await card.click();
+  await expect(page.getByText(/Back Squat|Deadlift|Bench Press/).first()).toBeVisible();
 });
 
 test('cloud sync account panel and auth modal render', async ({ page }) => {

@@ -217,7 +217,20 @@ fitness log this is sufficient and robust.
 - **Scroll lock**: `overscroll-behavior: none` on `html`/`body` plus a fixed
   background stops rubber-band scrolling above the top banner.
 
-## 9. Verification Results (Definition of Done)
+## 9. Training Log & Calendar (v4)
+
+- New `/history` route ("Training Log", nav short label "Log", 8th tab — the
+  mobile bottom bar still fits at 390px with the short labels).
+- **Calendar**: a Monday-first month grid built from finished workouts' dates;
+  trained days are highlighted (cyan), today is ringed (amber), multi-session
+  days show a count. Month is navigable; tapping a trained day filters the list.
+- **Session log**: all finished sessions, newest first, each with a summary
+  (duration, volume, sets, lifts). Expanding a card shows every exercise with
+  its completed sets (weight × reps, RPE) and per-exercise e1RM. Sessions can be
+  deleted (routed through `removeWorkout`, so the deletion tombstone syncs).
+- Read-only over existing data — no schema change; reuses `useFinishedWorkouts`.
+
+## 10. Verification Results (Definition of Done)
 
 Verified locally against the production build (`pnpm preview`):
 

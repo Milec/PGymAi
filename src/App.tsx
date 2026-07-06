@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { NavLink, Route, Routes } from 'react-router-dom';
 import { AuroraBg, Scanlines } from '@/components/hud';
 import {
+  IconCalendar,
   IconChart,
   IconDash,
   IconGauge,
@@ -21,6 +22,7 @@ const LibraryPage = lazy(() => import('@/routes/LibraryPage').then((m) => ({ def
 const ProgressPage = lazy(() => import('@/routes/ProgressPage').then((m) => ({ default: m.ProgressPage })));
 const StrengthPage = lazy(() => import('@/routes/StrengthPage').then((m) => ({ default: m.StrengthPage })));
 const ProgramsPage = lazy(() => import('@/routes/ProgramsPage').then((m) => ({ default: m.ProgramsPage })));
+const HistoryPage = lazy(() => import('@/routes/HistoryPage').then((m) => ({ default: m.HistoryPage })));
 const ProfilePage = lazy(() => import('@/routes/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 
 function RouteFallback() {
@@ -38,6 +40,7 @@ const NAV = [
   { to: '/progress', label: 'Progress', short: 'Prog', Icon: IconChart },
   { to: '/strength', label: 'Strength', short: 'Std', Icon: IconGauge },
   { to: '/programs', label: 'Programs', short: 'Plan', Icon: IconProgram },
+  { to: '/history', label: 'Log', short: 'Log', Icon: IconCalendar },
   { to: '/profile', label: 'Profile', short: 'You', Icon: IconUser },
 ];
 
@@ -138,6 +141,7 @@ export default function App() {
               <Route path="/progress" element={<ProgressPage />} />
               <Route path="/strength" element={<StrengthPage />} />
               <Route path="/programs" element={<ProgramsPage />} />
+              <Route path="/history" element={<HistoryPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Routes>
           </Suspense>
