@@ -3,7 +3,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Base path: '/' for local dev/preview, '/<repo>/' for GitHub Pages.
+// The Pages workflow sets VITE_BASE=/PGymAi/.
+const base = process.env.VITE_BASE || '/';
+
 export default defineConfig({
+  base,
   resolve: {
     alias: { '@': new URL('./src', import.meta.url).pathname },
   },
@@ -14,7 +19,7 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'fonts/*.woff2'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        navigateFallback: 'index.html',
+        navigateFallback: `${base}index.html`,
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === 'font',
@@ -35,8 +40,9 @@ export default defineConfig({
         background_color: '#05070f',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
+        id: base,
         categories: ['health', 'fitness', 'sports'],
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
