@@ -1,6 +1,8 @@
-import { lazy, Suspense, useEffect } from 'react';
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { Suspense, useEffect } from 'react';
+import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { AuroraBg, Scanlines } from '@/components/hud';
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import {
   IconCalendar,
   IconChart,
@@ -15,15 +17,16 @@ import { WorkoutTimerBadge } from '@/components/WorkoutTimerBadge';
 import { useAppStore } from '@/store/useAppStore';
 import { useAuthStore } from '@/store/useAuthStore';
 
-// Route-level code splitting keeps the initial bundle lean.
-const Dashboard = lazy(() => import('@/routes/Dashboard').then((m) => ({ default: m.Dashboard })));
-const WorkoutPage = lazy(() => import('@/routes/WorkoutPage').then((m) => ({ default: m.WorkoutPage })));
-const LibraryPage = lazy(() => import('@/routes/LibraryPage').then((m) => ({ default: m.LibraryPage })));
-const ProgressPage = lazy(() => import('@/routes/ProgressPage').then((m) => ({ default: m.ProgressPage })));
-const StrengthPage = lazy(() => import('@/routes/StrengthPage').then((m) => ({ default: m.StrengthPage })));
-const ProgramsPage = lazy(() => import('@/routes/ProgramsPage').then((m) => ({ default: m.ProgramsPage })));
-const HistoryPage = lazy(() => import('@/routes/HistoryPage').then((m) => ({ default: m.HistoryPage })));
-const ProfilePage = lazy(() => import('@/routes/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+// Route-level code splitting keeps the initial bundle lean. lazyWithRetry
+// recovers from stale chunks after a service-worker update (see the helper).
+const Dashboard = lazyWithRetry(() => import('@/routes/Dashboard').then((m) => ({ default: m.Dashboard })));
+const WorkoutPage = lazyWithRetry(() => import('@/routes/WorkoutPage').then((m) => ({ default: m.WorkoutPage })));
+const LibraryPage = lazyWithRetry(() => import('@/routes/LibraryPage').then((m) => ({ default: m.LibraryPage })));
+const ProgressPage = lazyWithRetry(() => import('@/routes/ProgressPage').then((m) => ({ default: m.ProgressPage })));
+const StrengthPage = lazyWithRetry(() => import('@/routes/StrengthPage').then((m) => ({ default: m.StrengthPage })));
+const ProgramsPage = lazyWithRetry(() => import('@/routes/ProgramsPage').then((m) => ({ default: m.ProgramsPage })));
+const HistoryPage = lazyWithRetry(() => import('@/routes/HistoryPage').then((m) => ({ default: m.HistoryPage })));
+const ProfilePage = lazyWithRetry(() => import('@/routes/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 
 function RouteFallback() {
   return (
@@ -66,6 +69,7 @@ export default function App() {
   const ready = useAppStore((s) => s.ready);
   const init = useAppStore((s) => s.init);
   const authInit = useAuthStore((s) => s.init);
+  const location = useLocation();
 
   useEffect(() => {
     // Seed + load local data first, then bring up auth/sync (which reads the DB).
@@ -133,18 +137,20 @@ export default function App() {
 
         {/* Main content */}
         <main className="min-w-0 flex-1 px-4 pb-28 pt-5 md:px-8 md:pb-10 md:pt-8">
-          <Suspense fallback={<RouteFallback />}>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/workout" element={<WorkoutPage />} />
-              <Route path="/library" element={<LibraryPage />} />
-              <Route path="/progress" element={<ProgressPage />} />
-              <Route path="/strength" element={<StrengthPage />} />
-              <Route path="/programs" element={<ProgramsPage />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-            </Routes>
-          </Suspense>
+          <RouteErrorBoundary key={location.pathname}>
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/workout" element={<WorkoutPage />} />
+                <Route path="/library" element={<LibraryPage />} />
+                <Route path="/progress" element={<ProgressPage />} />
+                <Route path="/strength" element={<StrengthPage />} />
+                <Route path="/programs" element={<ProgramsPage />} />
+                <Route path="/history" element={<HistoryPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+              </Routes>
+            </Suspense>
+          </RouteErrorBoundary>
         </main>
       </div>
 
