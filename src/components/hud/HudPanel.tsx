@@ -11,6 +11,8 @@ interface Props {
   label?: string;
   as?: 'div' | 'section' | 'article';
   glow?: boolean;
+  /** Use an opaque background instead of translucent glass (e.g. modals). */
+  solid?: boolean;
 }
 
 /**
@@ -26,16 +28,20 @@ export function HudPanel({
   label,
   as: Tag = 'div',
   glow = false,
+  solid = false,
 }: Props) {
   return (
-    <Tag className={`relative ${className}`}>
+    <Tag
+      className={`relative ${className}`}
+      style={solid ? { background: 'var(--space-1)', borderRadius: 'var(--radius)' } : undefined}
+    >
       <div
         aria-hidden
         className="chamfer absolute inset-0"
         style={{
-          background: 'var(--glass)',
-          backdropFilter: 'blur(var(--panel-blur))',
-          WebkitBackdropFilter: 'blur(var(--panel-blur))',
+          background: solid ? 'var(--space-1)' : 'var(--glass)',
+          backdropFilter: solid ? undefined : 'blur(var(--panel-blur))',
+          WebkitBackdropFilter: solid ? undefined : 'blur(var(--panel-blur))',
           border: '1px solid var(--line)',
           boxShadow: glow
             ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(56,225,255,0.12)'

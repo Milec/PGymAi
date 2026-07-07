@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { HudPanel } from './HudPanel';
 
 interface Props {
@@ -19,15 +20,18 @@ export function Modal({ open, onClose, title, children, wide }: Props) {
   }, [open, onClose]);
 
   if (!open) return null;
-  return (
+  // Portal to <body> so the overlay escapes any parent stacking context
+  // (HudPanel wrappers use z-index) and truly covers the page.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center"
-      style={{ background: 'rgba(3,5,11,0.72)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-[100] flex items-end justify-center p-3 sm:items-center"
+      style={{ background: 'rgba(2,4,9,0.9)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <HudPanel
         className={`max-h-[90vh] w-full overflow-y-auto p-5 ${wide ? 'max-w-3xl' : 'max-w-md'}`}
         glow
+        solid
       >
         <div onClick={(e) => e.stopPropagation()}>
           {title && (
@@ -45,6 +49,7 @@ export function Modal({ open, onClose, title, children, wide }: Props) {
           {children}
         </div>
       </HudPanel>
-    </div>
+    </div>,
+    document.body,
   );
 }
