@@ -38,7 +38,11 @@ export function Dashboard() {
   const weeks = useMemo(() => weeklyVolume(workouts, volWeeks), [workouts, volWeeks]);
   const streak = useMemo(() => computeStreak(workouts), [workouts]);
   const prs = useMemo(() => recentPRs(workouts, exMap, 6), [workouts, exMap]);
-  const balance = useMemo(() => muscleBalance(workouts, exMap, 28), [workouts, exMap]);
+  // Muscle balance shares the volume chart's period (weeks → days).
+  const balance = useMemo(
+    () => muscleBalance(workouts, exMap, volWeeks * 7),
+    [workouts, exMap, volWeeks],
+  );
 
   const thisWeekVol = weeks[weeks.length - 1]?.volumeKg ?? 0;
   const sessionsThisWeek = useMemo(() => {
@@ -123,9 +127,16 @@ export function Dashboard() {
         </HudPanel>
 
         <HudPanel className="p-4" label="MUSCLE BALANCE" bracketColor="var(--violet)">
-          <div className="h-52 w-full pt-3">
+          <div className="flex justify-end pt-1">
+            <span className="mono text-[10px] text-[var(--ink-faint)]">
+              last {volWeeks < 52 ? `${volWeeks}w` : '1y'}
+            </span>
+          </div>
+          <div className="h-48 w-full">
             {radarData.length === 0 ? (
-              <Centered>Train to reveal your muscle-group balance (28d).</Centered>
+              <Centered>
+                Train to reveal your muscle-group balance (last {volWeeks < 52 ? `${volWeeks} weeks` : 'year'}).
+              </Centered>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={radarData} outerRadius="72%">

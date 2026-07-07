@@ -164,13 +164,11 @@ export function ProfilePage() {
 
       <HudPanel className="mb-4 p-5" label="STANDARDS TRANSPARENCY" bracketColor="var(--violet)">
         <p className="text-[12.5px] leading-relaxed text-[var(--ink-dim)]">
-          STRIDE's strength comparison uses <strong className="text-[var(--ink)]">bodyweight-ratio
-          bands</strong> (lift ÷ bodyweight) consolidated from openly published tables (ExRx.net /
-          Symmetric Strength). The <em>average reference</em> is the Novice band ceiling — a
-          reference point, not a population census. Percentiles are approximate. It is a ratio
-          model, so it slightly overrates very light lifters and underrates very heavy ones. These
-          are approximate reference bands, never authoritative standards. Full source &amp;
-          limitations live in <span className="mono text-[var(--cyan)]">DECISIONS.md</span>.
+          Strength comparison uses the <strong className="text-[var(--ink)]">Wilks score</strong>{' '}
+          (lift normalised for bodyweight &amp; sex). Level bands are{' '}
+          <strong className="text-[var(--amber)]">approximate</strong> references, not official
+          standards; percentiles are approximate. Details in{' '}
+          <span className="mono text-[var(--cyan)]">DECISIONS.md</span>.
         </p>
       </HudPanel>
 

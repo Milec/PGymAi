@@ -37,22 +37,29 @@ comparison must not fabricate numbers.
 
 ### Source
 
-The standards are **bodyweight-ratio multipliers** (lift ÷ bodyweight) per big
-lift, per biological sex, across five training levels: Untrained, Novice,
-Intermediate, Advanced, Elite. The multiplier bands used here are consolidated
-from widely published, openly documented strength-standard tables — primarily
-**ExRx.net Strength Standards** (which are themselves derived from Lon Kilgore's
-work) and cross-checked against the crowd-sourced **Symmetric Strength** /
-**StrengthLevel** ratio bands. Values are stored in
-`src/data/strengthStandards.ts` as a typed table with the source noted inline.
+**Updated (v5): the comparison now uses the Wilks score.** Each lift is
+normalised with the published **Wilks-1 coefficient** (a function of bodyweight
+and sex; `src/lib/wilks.ts`), giving `Wilks = coefficient × e1RM`. This replaces
+the raw lift/bodyweight ratio as the headline metric, so athletes of different
+bodyweights/sexes are on one comparable scale.
+
+The five **level bands** (Untrained → Elite) are expressed as Wilks scores,
+**derived** by running the previously-used ratio standards — consolidated from
+**ExRx.net Strength Standards** (Lon Kilgore) cross-checked against
+**Symmetric Strength** / **StrengthLevel** — through the Wilks formula at
+reference bodyweights (male 90 kg, female 65 kg) and averaging the sexes. So the
+bands are grounded in published tables, not invented. Both the ratio table
+(`STRENGTH_STANDARDS`) and the derived `WILKS_BANDS` live in
+`src/data/strengthStandards.ts`.
 
 ### Assumptions & Limitations (surfaced in-app)
 
-1. **Ratio model, not a per-bodyweight regression.** We use a single lift/bodyweight
-   ratio per level rather than an absolute table keyed to exact bodyweight.
-   Ratio standards slightly overrate very light lifters and underrate very heavy
-   lifters, because strength does not scale linearly with bodyweight (allometric
-   scaling). We state this in the comparison UI.
+1. **Derived bands.** The Wilks coefficient itself is the standard published
+   formula, but the per-lift level thresholds are derived from ratio standards
+   (see above), so they are approximate references rather than official Wilks
+   benchmarks (Wilks is normally applied to a 3-lift total, not single lifts).
+   The Wilks-1 polynomial is only valid within its fitted bodyweight range, so
+   the coefficient is clamped (male ≤ 200 kg, female ≤ 150 kg).
 2. **"Average person of your bodyweight"** is defined explicitly as the
    **Novice** band ceiling — i.e., roughly what a healthy, minimally-trained
    adult of that sex/bodyweight can lift. This is a *reference point*, not a
@@ -230,7 +237,24 @@ fitness log this is sufficient and robust.
   deleted (routed through `removeWorkout`, so the deletion tombstone syncs).
 - Read-only over existing data — no schema change; reuses `useFinishedWorkouts`.
 
-## 10. Verification Results (Definition of Done)
+## 10. Logging & standards refinements (v5)
+
+- **Wilks strength standards** — see §3 (reworked from ratio bands to Wilks
+  score); the in-app disclaimer was shortened.
+- **Bodyweight sets** — a set now counts as logged/complete with reps only
+  (weight optional), so exercises like Ab Wheel Rollout or Push-Ups record
+  properly. Volume is `weight × reps` (0 for bodyweight); the log shows "BW".
+  The logged-set predicate changed from `reps > 0 && weight > 0` to `reps > 0`.
+- **Per-set weight ↔ %** — when a lift has a 1RM, the set logger adds a `%`
+  column; entering either weight or % fills the other, rounded to plate
+  increments (2.5 kg / 5 lb). The bulk "Auto-fill" panel remains for filling all
+  sets by %1RM or RPE.
+- **Muscle balance** now shares the dashboard volume chart's period selector.
+- **Sign-in CTA** made solid/opaque (was a faint translucent fill); the
+  decorative aurora layer is `pointer-events-none` so it can never intercept a
+  tap.
+
+## 11. Verification Results (Definition of Done)
 
 Verified locally against the production build (`pnpm preview`):
 

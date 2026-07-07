@@ -17,6 +17,8 @@
  * (largely untrained) population.
  */
 
+import { wilksCoefficient } from '@/lib/wilks';
+
 export type Sex = 'male' | 'female';
 
 export const STRENGTH_LEVELS = [
@@ -147,6 +149,99 @@ export function classifyStrength(
     nextRatio,
     bands,
     averageRatio,
+    averageKg,
+    deltaVsAverageKg: e1rmKg - averageKg,
+    approxPercentile: Math.round(approxPercentile * 10) / 10,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// WILKS-BASED CLASSIFICATION
+//
+// The Wilks coefficient normalises a lift for bodyweight and sex, giving a
+// single comparable score. Per-lift Wilks-score bands below are derived by
+// running the published ratio standards above through the Wilks formula at
+// reference bodyweights (male 90 kg, female 65 kg) and averaging the sexes —
+// so the bands are one sex/bodyweight-independent scale grounded in the same
+// documented tables. Still approximate reference bands, not official standards.
+// ---------------------------------------------------------------------------
+
+const REF_BW: Record<Sex, number> = { male: 90, female: 65 };
+
+function deriveWilksBands(std: Record<Sex, RatioBands>): RatioBands {
+  const out = {} as RatioBands;
+  for (const level of STRENGTH_LEVELS) {
+    const m = std.male[level] * REF_BW.male * wilksCoefficient('male', REF_BW.male);
+    const f = std.female[level] * REF_BW.female * wilksCoefficient('female', REF_BW.female);
+    out[level] = Math.round((m + f) / 2);
+  }
+  return out;
+}
+
+/** Wilks-score bands per lift (see note above). */
+export const WILKS_BANDS: Record<string, RatioBands> = Object.fromEntries(
+  Object.entries(STRENGTH_STANDARDS).map(([key, std]) => [key, deriveWilksBands(std)]),
+);
+
+export interface WilksResult {
+  /** Wilks score for this lift (coefficient × e1RM). */
+  score: number;
+  /** The Wilks coefficient at the user's sex + bodyweight. */
+  coefficient: number;
+  level: StrengthLevel;
+  nextLevel?: StrengthLevel;
+  nextScore?: number;
+  bands: RatioBands;
+  /** "Average of your bodyweight" reference Wilks score (Novice ceiling). */
+  averageScore: number;
+  /** That reference expressed as a lift in kg at this bodyweight. */
+  averageKg: number;
+  /** Signed delta of the user's e1RM vs the average reference, in kg. */
+  deltaVsAverageKg: number;
+  /** Approximate percentile among trained lifters (labelled "approx."). */
+  approxPercentile: number;
+}
+
+/** Classify an estimated 1RM using the Wilks score against per-lift bands. */
+export function classifyWilks(
+  standardKey: string,
+  sex: Sex,
+  e1rmKg: number,
+  bodyweightKg: number,
+): WilksResult | null {
+  const bands = WILKS_BANDS[standardKey];
+  if (!bands || bodyweightKg <= 0) return null;
+  const coefficient = wilksCoefficient(sex, bodyweightKg);
+  const score = coefficient * e1rmKg;
+
+  let level: StrengthLevel = 'Untrained';
+  for (const l of STRENGTH_LEVELS) if (score >= bands[l]) level = l;
+  const idx = STRENGTH_LEVELS.indexOf(level);
+  const nextLevel = idx < STRENGTH_LEVELS.length - 1 ? STRENGTH_LEVELS[idx + 1] : undefined;
+  const nextScore = nextLevel ? bands[nextLevel] : undefined;
+
+  const averageScore = bands.Novice;
+  const averageKg = coefficient > 0 ? averageScore / coefficient : 0;
+
+  let approxPercentile: number;
+  if (score < bands.Untrained) {
+    approxPercentile = Math.max(1, (score / bands.Untrained) * BAND_PERCENTILE.Untrained);
+  } else if (nextLevel && nextScore !== undefined) {
+    const lo = bands[level];
+    const frac = Math.min(1, (score - lo) / (nextScore - lo || 1));
+    approxPercentile = BAND_PERCENTILE[level] + frac * (BAND_PERCENTILE[nextLevel] - BAND_PERCENTILE[level]);
+  } else {
+    approxPercentile = Math.min(99.5, 95 + (score / bands.Elite - 1) * 20);
+  }
+
+  return {
+    score,
+    coefficient,
+    level,
+    nextLevel,
+    nextScore,
+    bands,
+    averageScore,
     averageKg,
     deltaVsAverageKg: e1rmKg - averageKg,
     approxPercentile: Math.round(approxPercentile * 10) / 10,

@@ -123,6 +123,60 @@ test('library PR can be set and drives auto-fill in a workout', async ({ page })
   await expect(firstWeight).toHaveValue('150');
 });
 
+test('bodyweight set logs as complete with no weight', async ({ page }) => {
+  await freshApp(page);
+  await page.goto('/#/workout');
+  await page.getByRole('button', { name: /start freestyle/i }).click();
+  await page.getByRole('button', { name: /add exercise/i }).click();
+  await page.getByPlaceholder('Search…').fill('Push-Up');
+  await page.getByRole('button', { name: /^Push-Up/ }).first().click();
+
+  // Reps only — no weight entered.
+  await page.locator('input[inputmode="numeric"]').first().fill('15');
+  await page.getByLabel('Toggle complete').first().click();
+
+  // Sets Done registers the completed bodyweight set, so Finish is enabled.
+  await page.getByRole('button', { name: /finish session/i }).click();
+  await expect(page).toHaveURL(/#\/progress/);
+
+  // It shows up in the training log as a bodyweight (BW) set.
+  await page.goto('/#/history');
+  await page.getByText(/Freestyle Session/).first().click();
+  await expect(page.getByText(/BW/).first()).toBeVisible();
+});
+
+test('per-set percent auto-fills weight rounded to 2.5', async ({ page }) => {
+  await freshApp(page);
+  // Set a 150 kg PR for Back Squat.
+  await page.goto('/#/library');
+  await page.getByPlaceholder(/search exercises/i).fill('Back Squat');
+  await page.locator('button', { hasText: '1RM PR' }).first().click();
+  await page.getByPlaceholder('e.g. 140').fill('150');
+  await page.getByRole('button', { name: /save pr/i }).click();
+
+  await page.goto('/#/workout');
+  await page.getByRole('button', { name: /start freestyle/i }).click();
+  await page.getByRole('button', { name: /add exercise/i }).click();
+  await page.getByPlaceholder('Search…').fill('Back Squat');
+  await page.getByRole('button', { name: /^Back Squat/ }).first().click();
+
+  // Type 50% into the per-set % cell → weight fills to 75 (50% of 150).
+  await page.getByLabel('Percent of 1RM').first().fill('50');
+  await expect(page.locator('input[inputmode="decimal"]').first()).toHaveValue('75');
+});
+
+test('muscle balance follows the volume chart period', async ({ page }) => {
+  await freshApp(page);
+  await page.evaluate(async () => {
+    const m = await import('/src/dev/demoData.ts');
+    await m.loadDemoData();
+  });
+  await page.goto('/#/');
+  await expect(page.getByText(/last 8w/i)).toBeVisible();
+  await page.getByRole('button', { name: '4w', exact: true }).click();
+  await expect(page.getByText(/last 4w/i)).toBeVisible();
+});
+
 test('training log shows sessions and calendar', async ({ page }) => {
   await freshApp(page);
   // Seed a training history via the app's own demo loader.

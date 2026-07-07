@@ -27,7 +27,7 @@ function summarize(w: Workout): Summary {
   let sets = 0;
   for (const e of w.entries) {
     for (const s of e.sets) {
-      if (s.reps > 0 && s.weightKg > 0) {
+      if (s.reps > 0) {
         volumeKg += s.weightKg * s.reps;
         sets += 1;
       }
@@ -250,7 +250,7 @@ function SessionCard({ workout, unit }: { workout: Workout; unit: Unit }) {
         <div className="mt-4 flex flex-col gap-3 border-t border-[var(--line)] pt-3">
           {workout.entries.map((e) => {
             const ex = exMap.get(e.exerciseId);
-            const done = e.sets.filter((st) => st.reps > 0 && st.weightKg > 0);
+            const done = e.sets.filter((st) => st.reps > 0);
             let best = 0;
             for (const st of done) best = Math.max(best, estimate1rm(st.weightKg, st.reps));
             return (
@@ -269,8 +269,16 @@ function SessionCard({ workout, unit }: { workout: Workout; unit: Unit }) {
                       key={st.id}
                       className="mono rounded-[2px] border border-[var(--line)] px-2 py-1 text-[11px] text-[var(--ink-dim)]"
                     >
-                      <span className="text-[var(--ink-faint)]">{i + 1}·</span> {formatWeight(st.weightKg, unit)}
-                      <span className="text-[var(--ink-faint)]">{unit}</span> × {st.reps}
+                      <span className="text-[var(--ink-faint)]">{i + 1}·</span>{' '}
+                      {st.weightKg > 0 ? (
+                        <>
+                          {formatWeight(st.weightKg, unit)}
+                          <span className="text-[var(--ink-faint)]">{unit}</span>
+                        </>
+                      ) : (
+                        <span className="text-[var(--ink-faint)]">BW</span>
+                      )}{' '}
+                      × {st.reps}
                       {st.rpe ? <span className="text-[var(--violet)]"> @{st.rpe}</span> : ''}
                     </span>
                   ))}

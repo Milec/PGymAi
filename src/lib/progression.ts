@@ -179,7 +179,7 @@ export function summarizePerformance(
   sets: { weightKg: number; reps: number; completed: boolean; rpe?: number }[],
   formula: 'epley' | 'brzycki' = 'epley',
 ): LastPerformance | undefined {
-  const done = sets.filter((s) => s.completed && s.weightKg > 0 && s.reps > 0);
+  const done = sets.filter((s) => s.completed && s.reps > 0);
   if (done.length === 0) return undefined;
   let top = done[0];
   let bestE1rm = 0;

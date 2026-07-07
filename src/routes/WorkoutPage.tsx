@@ -147,6 +147,11 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
   const finished = useFinishedWorkouts();
   // Effective 1RM: a manually-entered PR wins, else best estimated 1RM from history.
   const oneRmKg = profile.prs?.[entry.exerciseId] || bestE1rm(finished, entry.exerciseId);
+  // With a 1RM, add a per-set % column (weight ↔ % auto-fill each other).
+  const gridCols =
+    oneRmKg > 0
+      ? 'grid-cols-[18px_1.15fr_44px_0.85fr_36px_34px_22px]'
+      : 'grid-cols-[24px_1fr_1fr_46px_40px_26px]';
 
   return (
     <HudPanel className="p-4" label={ex?.equipment.toUpperCase()}>
@@ -191,9 +196,10 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
       />
 
       {/* header row */}
-      <div className="mono grid grid-cols-[24px_1fr_1fr_46px_40px_26px] gap-2 px-1 pb-1 text-[9px] uppercase tracking-wider text-[var(--ink-faint)]">
+      <div className={`mono grid ${gridCols} gap-2 px-1 pb-1 text-[9px] uppercase tracking-wider text-[var(--ink-faint)]`}>
         <span>#</span>
         <span>{profile.units}</span>
+        {oneRmKg > 0 && <span>%</span>}
         <span>Reps</span>
         <span>RPE</span>
         <span className="text-center">Done</span>
@@ -202,7 +208,7 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
 
       <div className="flex flex-col gap-1.5">
         {entry.sets.map((s, i) => (
-          <SetRow key={s.id} entryId={entry.id} set={s} index={i + 1} />
+          <SetRow key={s.id} entryId={entry.id} set={s} index={i + 1} oneRmKg={oneRmKg} gridCols={gridCols} />
         ))}
       </div>
 
@@ -326,17 +332,31 @@ function AutoFill({
   );
 }
 
-function SetRow({ entryId, set, index }: { entryId: string; set: LoggedSet; index: number }) {
+function SetRow({
+  entryId,
+  set,
+  index,
+  oneRmKg,
+  gridCols,
+}: {
+  entryId: string;
+  set: LoggedSet;
+  index: number;
+  oneRmKg: number;
+  gridCols: string;
+}) {
   const updateSet = useAppStore((s) => s.updateSet);
   const removeSet = useAppStore((s) => s.removeSet);
   const toggleComplete = useAppStore((s) => s.toggleComplete);
   const unit = useAppStore((s) => s.profile.units);
 
   const weightDisplay = set.weightKg ? String(Math.round(fromKg(set.weightKg, unit) * 100) / 100) : '';
+  // % of 1RM derived from the current weight — the two fields auto-fill each other.
+  const percentDisplay = oneRmKg > 0 && set.weightKg > 0 ? String(Math.round((set.weightKg / oneRmKg) * 100)) : '';
 
   return (
     <div
-      className="mono grid grid-cols-[24px_1fr_1fr_46px_40px_26px] items-center gap-2 rounded-[3px] px-1 py-1 transition-colors"
+      className={`mono grid ${gridCols} items-center gap-2 rounded-[3px] px-1 py-1 transition-colors`}
       style={set.completed ? { background: 'rgba(56,247,176,0.08)' } : {}}
     >
       <span className="text-center text-[12px] text-[var(--ink-faint)]">{index}</span>
@@ -348,6 +368,21 @@ function SetRow({ entryId, set, index }: { entryId: string; set: LoggedSet; inde
         onChange={(e) => updateSet(entryId, set.id, { weightKg: toKg(parseFloat(e.target.value) || 0, unit) })}
         className="cell"
       />
+      {oneRmKg > 0 && (
+        <input
+          type="number"
+          inputMode="numeric"
+          value={percentDisplay}
+          placeholder="%"
+          onChange={(e) => {
+            const pct = parseFloat(e.target.value);
+            const weightKg = pct > 0 ? roundToIncrement((pct / 100) * oneRmKg, unit) : 0;
+            updateSet(entryId, set.id, { weightKg });
+          }}
+          className="cell"
+          aria-label="Percent of 1RM"
+        />
+      )}
       <input
         type="number"
         inputMode="numeric"

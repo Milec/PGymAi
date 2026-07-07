@@ -89,7 +89,13 @@ export function AccountPanel() {
             devices. Your local data stays put and merges on first sign-in.
           </p>
           <div>
-            <HudButton onClick={() => setAuthOpen(true)}>Sign In / Create Account</HudButton>
+            <HudButton
+              onClick={() => setAuthOpen(true)}
+              className="w-full sm:w-auto"
+              style={{ background: 'var(--cyan)', color: 'var(--space-0)', borderColor: 'var(--cyan)' }}
+            >
+              Sign In / Create Account
+            </HudButton>
           </div>
         </div>
       )}
