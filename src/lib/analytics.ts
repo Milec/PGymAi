@@ -19,7 +19,7 @@ export interface ExerciseSeries {
 function sessionSets(w: Workout, exerciseId: string) {
   const entry = w.entries.find((e) => e.exerciseId === exerciseId);
   if (!entry) return [];
-  return entry.sets.filter((s) => s.reps > 0 && s.weightKg > 0);
+  return entry.sets.filter((s) => s.reps > 0);
 }
 
 /** Build a per-exercise time series (one top-set point per session). */
@@ -113,7 +113,7 @@ export function weeklyVolume(workouts: Workout[], weeks = 8): WeeklyVolume[] {
     if (!bucket) continue;
     for (const e of w.entries) {
       for (const s of e.sets) {
-        if (s.reps > 0 && s.weightKg > 0) {
+        if (s.reps > 0) {
           bucket.volumeKg += s.weightKg * s.reps;
           bucket.sets += 1;
         }
@@ -158,7 +158,7 @@ export function muscleBalance(
     for (const e of w.entries) {
       const ex = exercises.get(e.exerciseId);
       if (!ex) continue;
-      const done = e.sets.filter((s) => s.reps > 0 && s.weightKg > 0).length;
+      const done = e.sets.filter((s) => s.reps > 0).length;
       if (done === 0) continue;
       for (const m of ex.primaryMuscles) counts.set(m, (counts.get(m) ?? 0) + done);
       for (const m of ex.secondaryMuscles) counts.set(m, (counts.get(m) ?? 0) + done * 0.5);
@@ -192,7 +192,7 @@ export function recentPRs(
     for (const e of w.entries) {
       let sessionBest = 0;
       for (const s of e.sets) {
-        if (s.reps > 0 && s.weightKg > 0) {
+        if (s.reps > 0) {
           sessionBest = Math.max(sessionBest, estimate1rm(s.weightKg, s.reps, formula));
         }
       }
@@ -217,7 +217,7 @@ export function totalVolume(workouts: Workout[]): number {
   for (const w of workouts) {
     if (!w.finishedAt) continue;
     for (const e of w.entries)
-      for (const s of e.sets) if (s.reps > 0 && s.weightKg > 0) v += s.weightKg * s.reps;
+      for (const s of e.sets) if (s.reps > 0) v += s.weightKg * s.reps;
   }
   return v;
 }

@@ -88,11 +88,14 @@
 .cell {
   font-family: var(--font-mono);
   width: 100%;
+  min-width: 0;
   min-height: 40px;
   border-radius: 3px;
   border: 1px solid var(--line);
   background: rgba(5, 9, 20, 0.5);
-  padding: 0 8px;
+  padding: 0 3px;
+  font-size: 13px;
+  letter-spacing: -0.02em;
   color: var(--ink);
   text-align: center;
   outline: none;

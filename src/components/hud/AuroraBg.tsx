@@ -2,7 +2,7 @@
  *  Colours come from theme tokens so it re-skins per theme. */
 export function AuroraBg() {
   return (
-    <div aria-hidden className="fixed inset-0 -z-10 overflow-hidden bg-[var(--space-0)]">
+    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[var(--space-0)]">
       {/* dotted grid */}
       <div
         className="absolute inset-0 opacity-[0.5]"
