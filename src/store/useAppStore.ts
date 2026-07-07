@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db } from '@/db/db';
 import { DEFAULT_PROFILE, ensureSeeded } from '@/db/seed';
 import type { LoggedSet, Profile, Workout, WorkoutEntry } from '@/db/types';
+import { estimate1rm } from '@/lib/e1rm';
 import { uid } from '@/lib/id';
 import { applyTheme, DEFAULT_THEME, type ThemeName } from '@/lib/theme';
 import { persistProfile, persistWorkout, removeWorkout } from '@/sync/local';
@@ -41,6 +42,29 @@ interface AppState {
 
 function persistActive(w: Workout | null) {
   if (w) void persistWorkout(w);
+}
+
+/**
+ * For each exercise in a finished workout that has no 1RM PR yet, derive one
+ * from the best estimated 1RM across that exercise's logged sets. Returns the
+ * PRs to add (keyed by exercise id); never overwrites an existing PR.
+ */
+export function newPrsFromWorkout(
+  workout: Workout,
+  existing: Record<string, number> | undefined,
+): Record<string, number> {
+  const added: Record<string, number> = {};
+  for (const entry of workout.entries) {
+    if (existing?.[entry.exerciseId] != null) continue; // already has a PR
+    let best = added[entry.exerciseId] ?? 0;
+    for (const s of entry.sets) {
+      if (s.reps > 0 && s.weightKg > 0) {
+        best = Math.max(best, estimate1rm(s.weightKg, s.reps));
+      }
+    }
+    if (best > 0) added[entry.exerciseId] = best;
+  }
+  return added;
 }
 
 function newSet(partial?: Partial<LoggedSet>): LoggedSet {
@@ -246,6 +270,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       .filter((e) => e.sets.length > 0);
     const finished: Workout = { ...a, entries, finishedAt: Date.now() };
     await persistWorkout(finished, true);
+
+    // Auto-log a 1RM PR for any exercise done this session that has none yet,
+    // deriving it from the best estimated 1RM across the sets they just did.
+    const profile = get().profile;
+    const additions = newPrsFromWorkout(finished, profile.prs);
+    if (Object.keys(additions).length > 0) {
+      const prs = { ...(profile.prs ?? {}), ...additions };
+      const updated = { ...profile, prs };
+      set({ profile: updated });
+      await persistProfile(updated);
+    }
+
     set({ active: null, restEndsAt: null });
     localStorage.removeItem(REST_KEY);
     return finished.id;
