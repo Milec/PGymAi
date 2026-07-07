@@ -58,16 +58,15 @@ Row, Front Squat), STRIDE takes your **best estimated 1RM**, divides by your
 
 `Untrained → Novice → Intermediate → Advanced → Elite`
 
-It shows your training level, your ratio (×BW), an **approximate percentile**,
-and your **delta vs. the average reference** (green up / red down).
+It computes your **Wilks score** (the lift normalised for bodyweight and sex),
+shows your training level, an **approximate percentile**, and your **delta vs.
+the average reference** (green up / red down).
 
-**Honesty matters here.** The numbers are **approximate reference bands** — a
-ratio model consolidated from openly published tables (ExRx.net / Symmetric
-Strength / StrengthLevel). The *"average person of your bodyweight"* is defined
-explicitly as the **Novice band ceiling**, and the app says so in-app. Full
-source, assumptions, and limitations are documented in
-[`DECISIONS.md` §3](DECISIONS.md). Nothing is fabricated or presented as
-authoritative.
+**Honesty matters here.** The Wilks coefficient is the published formula; the
+per-lift level bands are **approximate** references derived by running openly
+published ratio standards (ExRx.net / Symmetric Strength) through Wilks — not
+official standards, and percentiles are approximate. Full details are in
+[`DECISIONS.md` §3](DECISIONS.md). Nothing is presented as authoritative.
 
 ---
 
