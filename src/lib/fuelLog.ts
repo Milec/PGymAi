@@ -2,10 +2,12 @@ import { db } from '@/db/db';
 import type { FoodLogEntry, SavedFood } from '@/db/types';
 import { uid } from '@/lib/id';
 import type { MacroSet, MealId } from '@/lib/nutrition';
+import { persistFood, persistFoodLog, removeFood, removeFoodLog } from '@/sync/local';
 
 /**
- * Fuel journal persistence. Local-only (IndexedDB) — nutrition data does not
- * participate in cloud sync yet (see DECISIONS.md §12).
+ * Fuel journal persistence. Writes go through the sync-aware helpers so the
+ * journal and reusable foods back up to Supabase when cloud sync is active
+ * (and stay purely local otherwise).
  */
 
 export interface LogFoodInput {
@@ -23,20 +25,21 @@ export async function logFood(input: LogFoodInput): Promise<FoodLogEntry> {
   const entry: FoodLogEntry = {
     id: uid('food'),
     loggedAt: Date.now(),
-    updatedAt: Date.now(),
     ...input,
   };
-  await db.foodLogs.put(entry);
+  await persistFoodLog(entry);
   await touchSavedFood(input);
   return entry;
 }
 
 export async function updateLogEntry(id: string, patch: Partial<FoodLogEntry>): Promise<void> {
-  await db.foodLogs.update(id, { ...patch, updatedAt: Date.now() });
+  const existing = await db.foodLogs.get(id);
+  if (!existing) return;
+  await persistFoodLog({ ...existing, ...patch });
 }
 
 export async function removeLogEntry(id: string): Promise<void> {
-  await db.foodLogs.delete(id);
+  await removeFoodLog(id);
 }
 
 /** Copy a logged entry to another day/meal (quick re-log). */
@@ -61,7 +64,7 @@ async function touchSavedFood(input: LogFoodInput): Promise<void> {
   const now = Date.now();
   if (input.barcode) {
     const existing = await db.foods.where('barcode').equals(input.barcode).first();
-    await db.foods.put({
+    await persistFood({
       id: existing?.id ?? uid('sf'),
       name: input.name,
       brand: input.brand,
@@ -70,13 +73,12 @@ async function touchSavedFood(input: LogFoodInput): Promise<void> {
       servingG: input.servingG,
       custom: existing?.custom,
       lastUsedAt: now,
-      updatedAt: now,
     });
     return;
   }
   // Manual entries: match by exact name so repeats collapse to one food.
   const existing = await db.foods.filter((f) => !f.barcode && f.name === input.name).first();
-  await db.foods.put({
+  await persistFood({
     id: existing?.id ?? uid('sf'),
     name: input.name,
     brand: input.brand,
@@ -84,19 +86,15 @@ async function touchSavedFood(input: LogFoodInput): Promise<void> {
     servingG: input.servingG,
     custom: true,
     lastUsedAt: now,
-    updatedAt: now,
   });
 }
 
 export async function saveCustomFood(
   food: Omit<SavedFood, 'id' | 'lastUsedAt' | 'updatedAt'> & { id?: string },
 ): Promise<SavedFood> {
-  const now = Date.now();
-  const saved: SavedFood = { lastUsedAt: now, updatedAt: now, ...food, id: food.id ?? uid('sf') };
-  await db.foods.put(saved);
-  return saved;
+  return persistFood({ lastUsedAt: Date.now(), ...food, id: food.id ?? uid('sf') });
 }
 
 export async function removeSavedFood(id: string): Promise<void> {
-  await db.foods.delete(id);
+  await removeFood(id);
 }

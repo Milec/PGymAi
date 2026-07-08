@@ -30,7 +30,7 @@ space-navy field, luminous scanlines, and instrument-panel numeric readouts.
 | **Strength Standards** | The differentiator — see below. |
 | **Programs** | Import multi-week programs (file upload or paste-JSON, Zod-validated), follow week/day with adaptive load suggestions, export any program back to JSON. Ships 3 example programs. |
 | **Training Log** | Browse every finished session (date, duration, volume, sets, lifts) and expand any one for full per-exercise set detail. A month **calendar** highlights which days you trained; tap a day to filter the log, or delete a session. |
-| **Fuel (Nutrition)** | MyFitnessPal-style daily food journal divided into meals, with calorie + protein/carb/fat bars against your targets. **Auto-calculated goals** (Mifflin-St Jeor from weight/height/age/sex, training frequency, and cut/maintain/bulk rate) or manual targets. Log food by **searching the Open Food Facts catalogue** (millions of products), **scanning a barcode** (native BarcodeDetector with a lazy-loaded ZXing fallback), re-logging from **My Foods**, or creating custom foods. |
+| **Fuel (Nutrition)** | MyFitnessPal-style daily food journal divided into meals, with calorie + protein/carb/fat bars against your targets. **Auto-calculated goals** (Mifflin-St Jeor from weight/height/age/sex, training frequency, and cut/maintain/bulk rate) or manual targets. Log food by **searching the Open Food Facts catalogue** (millions of products), **scanning a barcode** (native BarcodeDetector with a lazy-loaded ZXing fallback), re-logging from **My Foods**, or creating custom foods. Amounts are **servings × serving size** (labelled serving, 100 g, exact grams, or oz), MyFitnessPal-style. Journal + My Foods back up via Cloud Sync. |
 | **Profile** | Sex, bodyweight, height, age, kg/lb units (toggles everywhere), default rest time, data export/erase, and a "Load Sample Data" button. **Theme picker**: Starship HUD (default), Dark Night, Light, and Bubblegum. |
 
 Navigation is an **expandable side menu**: collapsible TRAINING / NUTRITION
@@ -124,7 +124,8 @@ See [`DECISIONS.md` §4](DECISIONS.md) for the full schema and semantics.
 
 STRIDE is **offline-first**: IndexedDB is always the source of truth and the app
 works with no backend. When you configure Supabase and sign in, your **workouts,
-programs, custom exercises, and profile** sync across devices in the background.
+programs, custom exercises, food journal + My Foods, and profile** sync across
+devices in the background.
 
 - **Architecture** — local-first with background sync. On sign-in, local and
   remote data are reconciled **last-write-wins** using per-record `updatedAt`
@@ -140,7 +141,9 @@ programs, custom exercises, and profile** sync across devices in the background.
 1. Create a Supabase project. Copy the **Project URL** and the **anon /
    publishable key** (safe to expose in a browser).
 2. Run [`supabase/schema.sql`](supabase/schema.sql) once in the Supabase SQL
-   Editor (creates the tables, RLS policies, and Realtime publication).
+   Editor (creates the tables, RLS policies, and Realtime publication). The
+   script is idempotent — re-run it after updating STRIDE to pick up new
+   tables (e.g. the Fuel journal's `food_logs` / `foods`).
 3. Set env vars (local `.env`, or repo secrets for the Pages deploy):
    ```bash
    VITE_SUPABASE_URL=https://<project>.supabase.co
@@ -253,5 +256,3 @@ scripts/            icon + screenshot generators
 - Estimated 1RM formulas lose accuracy above ~12 reps (flagged in-app).
 - Macro targets use the published Mifflin-St Jeor equation and standard
   activity multipliers — planning estimates, not medical advice.
-- Food logs are stored locally (not yet cloud-synced); macro **targets** ride
-  along with the synced profile.

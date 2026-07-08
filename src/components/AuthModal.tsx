@@ -100,7 +100,7 @@ export function AuthModal({ open, onClose }: { open: boolean; onClose: () => voi
 
         <p className="text-[11px] leading-relaxed text-[var(--ink-faint)]">
           Your local data stays on this device. Signing in syncs workouts, programs, custom
-          exercises, and your profile across your devices via Supabase.
+          exercises, your food journal, and your profile across your devices via Supabase.
         </p>
 
         <div className="mt-1 flex justify-end gap-2">

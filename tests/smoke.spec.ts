@@ -233,11 +233,20 @@ test('fuel: calibrated targets + custom food logging end to end', async ({ page 
   await page.getByRole('spinbutton', { name: /carbs/i }).fill('50');
   await page.getByRole('spinbutton', { name: /fat \(g\)/i }).fill('8');
   await page.getByRole('button', { name: /continue/i }).click();
+
+  // MFP-style quantity: 2 servings × the 100 g serving = 200 g, macros double.
+  await page.getByLabel('Number of servings').fill('2');
+  await expect(page.getByText('= 200 g')).toBeVisible();
+  // Switching the serving-size unit keeps the count and re-derives the total.
+  await page.getByLabel('Serving size').selectOption('1g');
+  await expect(page.getByText('= 2 g')).toBeVisible();
+  await page.getByLabel('Serving size').selectOption('serving');
+  await expect(page.getByText('= 200 g')).toBeVisible();
   await page.getByRole('button', { name: /log to breakfast/i }).click();
 
-  // The journal entry appears with its calories counted.
+  // The journal entry appears with its (doubled) calories counted.
   await expect(page.getByText('Overnight Oats')).toBeVisible();
-  await expect(page.getByText(/350 kcal · P 20/)).toBeVisible();
+  await expect(page.getByText(/700 kcal · P 40/)).toBeVisible();
 
   // It's kept as a reusable "My Food" for the next log.
   await page.getByRole('button', { name: /add food to lunch/i }).click();

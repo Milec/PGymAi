@@ -123,7 +123,7 @@ export interface StoredProgram {
 }
 
 /** Sync entity kinds that participate in cloud sync. */
-export type SyncEntity = 'workouts' | 'programs' | 'custom_exercises';
+export type SyncEntity = 'workouts' | 'programs' | 'custom_exercises' | 'food_logs' | 'foods';
 
 /** A tombstone recording a local deletion so it can propagate to other devices. */
 export interface Deletion {

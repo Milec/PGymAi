@@ -1,5 +1,13 @@
 import { db } from '@/db/db';
-import type { Exercise, Profile, StoredProgram, SyncEntity, Workout } from '@/db/types';
+import type {
+  Exercise,
+  FoodLogEntry,
+  Profile,
+  SavedFood,
+  StoredProgram,
+  SyncEntity,
+  Workout,
+} from '@/db/types';
 import {
   stamp,
   syncDeleteRecord,
@@ -64,6 +72,30 @@ export async function persistCustomExercise(e: Exercise): Promise<Exercise> {
   await db.exercises.put(s);
   void syncPushRecord('custom_exercises', s);
   return s;
+}
+
+// --- Food journal ---
+export async function persistFoodLog(e: FoodLogEntry): Promise<FoodLogEntry> {
+  const s = stamp(e);
+  await db.foodLogs.put(s);
+  schedulePush('food_logs', s);
+  return s;
+}
+export async function removeFoodLog(id: string): Promise<void> {
+  await db.foodLogs.delete(id);
+  void syncDeleteRecord('food_logs', id);
+}
+
+// --- Reusable foods ---
+export async function persistFood(f: SavedFood): Promise<SavedFood> {
+  const s = stamp(f);
+  await db.foods.put(s);
+  schedulePush('foods', s);
+  return s;
+}
+export async function removeFood(id: string): Promise<void> {
+  await db.foods.delete(id);
+  void syncDeleteRecord('foods', id);
 }
 
 // --- Profile ---

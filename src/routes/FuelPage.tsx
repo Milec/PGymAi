@@ -178,7 +178,7 @@ export function FuelPage() {
 
       <p className="mt-5 text-center text-[10px] text-[var(--ink-faint)]">
         Catalogue data from Open Food Facts (openfoodfacts.org) · logged foods are stored on this
-        device
+        device and back up with Cloud Sync
       </p>
 
       <GoalCalculatorModal open={goalOpen} onClose={() => setGoalOpen(false)} />

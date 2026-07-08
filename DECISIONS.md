@@ -339,6 +339,18 @@ Dexie v3 adds two local tables:
   one row), surfaced for one-tap re-logging and offline use.
 
 Targets and calculator inputs live on the profile (`profile.nutrition`), so
-they **sync via the existing profile blob with no backend change**. Food
-logs are local-only for now — extending the JSONB sync registry to
-`food_logs` is straightforward but deferred until the journal shape settles.
+they **sync via the existing profile blob with no backend change**. The
+journal itself is cloud-backed too: `food_logs` and `foods` are registered
+sync entities (same JSONB + last-write-wins + tombstone model as workouts;
+tables, RLS, and Realtime in `supabase/schema.sql`, which also widens the
+tombstone entity check in place for pre-Fuel installs). Journal writes go
+through the debounced sync helpers, so rapid edits don't spam the network,
+and everything remains fully usable signed-out/offline.
+
+### Quantity model (MyFitnessPal-style)
+
+A log amount is **number of servings × serving size**. The serving-size
+options are the product's labelled serving (when the catalogue declares
+one), 100 g, 1 g (for exact gram entry), and 1 oz. Storage stays canonical
+in grams (`amountG`), so switching units never mutates history; the picker
+merely re-derives the servings count when the unit changes.

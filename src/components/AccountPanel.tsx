@@ -85,8 +85,8 @@ export function AccountPanel() {
       ) : (
         <div className="flex flex-col gap-3">
           <p className="text-[12.5px] leading-relaxed text-[var(--ink-dim)]">
-            Sign in to sync your workouts, programs, custom exercises, and profile across all your
-            devices. Your local data stays put and merges on first sign-in.
+            Sign in to sync your workouts, programs, custom exercises, food journal, and profile
+            across all your devices. Your local data stays put and merges on first sign-in.
           </p>
           <div>
             <HudButton
