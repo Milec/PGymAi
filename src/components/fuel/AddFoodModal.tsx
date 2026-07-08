@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { IconScan, IconSearch } from '@/components/icons';
 import { Chip, Field, HudButton, HudInput, Modal, Tag } from '@/components/hud';
 import type { SavedFood } from '@/db/types';
-import { lookupBarcode, searchFoods, type ApiFood } from '@/lib/foodApi';
+import { FoodApiError, lookupBarcode, searchFoods, type ApiFood } from '@/lib/foodApi';
 import { logFood } from '@/lib/fuelLog';
 import { MEALS, type MacroSet, type MealId } from '@/lib/nutrition';
 import { useSavedFoods } from '@/hooks/useLive';
@@ -147,18 +147,20 @@ function PickView({
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ApiFood[]>([]);
-  const [state, setState] = useState<'idle' | 'busy' | 'error' | 'done'>('idle');
+  const [state, setState] = useState<'idle' | 'busy' | 'error' | 'rate' | 'done'>('idle');
   const saved = useSavedFoods();
 
   const q = query.trim();
 
   // Debounced live search against the Open Food Facts catalogue. All state
   // updates happen inside the (async) timer so typing never cascades renders.
+  // The debounce is deliberately long and the client caches + retries: the
+  // public search endpoint rate-limits aggressively (~10 req/min).
   useEffect(() => {
     const ctl = new AbortController();
     const t = setTimeout(
       () => {
-        if (q.length < 2) {
+        if (q.length < 3) {
           setResults([]);
           setState('idle');
           return;
@@ -170,10 +172,13 @@ function PickView({
             setState('done');
           })
           .catch((err: unknown) => {
-            if (!(err instanceof DOMException && err.name === 'AbortError')) setState('error');
+            if (err instanceof DOMException && err.name === 'AbortError') return;
+            // Keep whatever results are already on screen — a transient
+            // failure shouldn't blank the list mid-search.
+            setState(err instanceof FoodApiError && err.rateLimited ? 'rate' : 'error');
           });
       },
-      q.length < 2 ? 0 : 400,
+      q.length < 3 ? 0 : 600,
     );
     return () => {
       clearTimeout(t);
@@ -219,7 +224,7 @@ function PickView({
       )}
 
       <div className="mt-3 max-h-[46vh] space-y-1 overflow-y-auto">
-        {q.length >= 2 ? (
+        {q.length >= 3 ? (
           <>
             {savedMatches.slice(0, 3).map((f) => (
               <FoodRow key={f.id} food={f} tag={f.custom ? 'custom' : 'recent'} onPick={onPick} />
@@ -227,6 +232,12 @@ function PickView({
             {state === 'busy' && (
               <p className="animate-pulse px-1 py-3 text-[12px] text-[var(--cyan)]">
                 Searching catalogue…
+              </p>
+            )}
+            {state === 'rate' && (
+              <p className="px-1 py-3 text-[12px] text-[var(--amber)]">
+                The catalogue is busy — pause a few seconds, then edit your search to retry. Your
+                saved foods and barcode scanning still work.
               </p>
             )}
             {state === 'error' && (

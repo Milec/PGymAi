@@ -136,6 +136,25 @@ export async function syncPushProfile(profile: Profile): Promise<void> {
     .upsert({ user_id: currentUserId, data: profile, updated_at: profile.updatedAt ?? Date.now() });
 }
 
+/**
+ * Delete every remote row for the signed-in user — all entity tables, the
+ * profile, and the tombstone log. Used by "Erase Everything" so a wipe can't
+ * be resurrected by the next reconcile. Throws if any delete fails (the
+ * caller must then keep local data intact).
+ */
+export async function eraseRemoteData(): Promise<void> {
+  if (!supabase || !currentUserId) return;
+  const uid = currentUserId;
+  for (const cfg of REGISTRY) {
+    const { error } = await supabase.from(cfg.table).delete().eq('user_id', uid);
+    if (error) throw new Error(`Cloud erase failed (${cfg.table}): ${error.message}`);
+  }
+  for (const table of ['deletions', 'profiles']) {
+    const { error } = await supabase.from(table).delete().eq('user_id', uid);
+    if (error) throw new Error(`Cloud erase failed (${table}): ${error.message}`);
+  }
+}
+
 // --------------------------------------------------------------------------
 // Full reconcile (on sign-in / reconnect)
 // --------------------------------------------------------------------------

@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { HudButton, HudInput, Modal } from '@/components/hud';
 
 /**
- * Camera barcode scanner for food logging. Uses the native BarcodeDetector
- * where available (Chrome/Android/Edge), falls back to a lazy-loaded ZXing
- * decoder elsewhere (iOS Safari, Firefox); manual entry always works.
+ * Camera barcode scanner for food logging. Prefers the native BarcodeDetector
+ * only when it actually supports retail barcode formats (some browsers expose
+ * the API with zero supported formats); otherwise lazy-loads the ZXing
+ * decoder (iOS Safari, Firefox, desktop Chrome without shape detection).
+ * Manual entry always works.
  */
 
 // Minimal typing for the (not-yet-standardised) BarcodeDetector API.
@@ -14,13 +16,38 @@ interface DetectedBarcode {
 interface BarcodeDetectorLike {
   detect(source: HTMLVideoElement): Promise<DetectedBarcode[]>;
 }
+interface BarcodeDetectorCtor {
+  new (opts?: { formats?: string[] }): BarcodeDetectorLike;
+  getSupportedFormats?: () => Promise<string[]>;
+}
 declare global {
   interface Window {
-    BarcodeDetector?: new (opts?: { formats?: string[] }) => BarcodeDetectorLike;
+    BarcodeDetector?: BarcodeDetectorCtor;
   }
 }
 
 const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'];
+
+/** Higher-resolution frames dramatically improve decode rates on phones. */
+const CAMERA: MediaStreamConstraints = {
+  video: {
+    facingMode: 'environment',
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+  },
+};
+
+/** Native detection is only trustworthy if it really decodes EAN barcodes. */
+async function nativeBarcodeSupport(): Promise<boolean> {
+  try {
+    const ctor = window.BarcodeDetector;
+    if (!ctor?.getSupportedFormats) return false;
+    const formats = await ctor.getSupportedFormats();
+    return formats.includes('ean_13');
+  } catch {
+    return false;
+  }
+}
 
 interface Props {
   onClose: () => void;
@@ -30,10 +57,16 @@ interface Props {
 /** Mount fresh per scan session — the camera starts on mount, stops on unmount. */
 export function BarcodeScanner({ onClose, onDetected }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [status, setStatus] = useState<'starting' | 'scanning' | 'error'>('starting');
   const [error, setError] = useState<string | null>(null);
   const [manual, setManual] = useState('');
-  // Latch so a burst of detections only fires once.
+  // Latch so a burst of detections only fires once; ref keeps the effect
+  // mount-stable so parent re-renders never restart the camera.
   const firedRef = useRef(false);
+  const onDetectedRef = useRef(onDetected);
+  useEffect(() => {
+    onDetectedRef.current = onDetected;
+  }, [onDetected]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -45,20 +78,26 @@ export function BarcodeScanner({ onClose, onDetected }: Props) {
     const fire = (code: string) => {
       if (firedRef.current || cancelled) return;
       firedRef.current = true;
-      onDetected(code.trim());
+      onDetectedRef.current(code.trim());
+    };
+
+    const fail = (message: string) => {
+      if (cancelled) return;
+      setStatus('error');
+      setError(message);
     };
 
     const start = async () => {
       if (!video) return;
       try {
-        if (window.BarcodeDetector) {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' },
-          });
+        if (await nativeBarcodeSupport()) {
+          stream = await navigator.mediaDevices.getUserMedia(CAMERA);
           if (cancelled) return;
           video.srcObject = stream;
           await video.play();
-          const detector = new window.BarcodeDetector({ formats: FORMATS });
+          if (cancelled) return;
+          setStatus('scanning');
+          const detector = new window.BarcodeDetector!({ formats: FORMATS });
           interval = setInterval(() => {
             void detector
               .detect(video)
@@ -70,23 +109,27 @@ export function BarcodeScanner({ onClose, onDetected }: Props) {
         } else {
           // ZXing manages its own camera stream; loaded on demand so the
           // decoder never weighs down the main bundle.
-          const { BrowserMultiFormatReader } = await import('@zxing/browser');
+          let BrowserMultiFormatReader;
+          try {
+            ({ BrowserMultiFormatReader } = await import('@zxing/browser'));
+          } catch {
+            fail('Scanner module failed to load — check your connection, or type the barcode below.');
+            return;
+          }
           if (cancelled) return;
           const reader = new BrowserMultiFormatReader();
-          zxingControls = await reader.decodeFromConstraints(
-            { video: { facingMode: 'environment' } },
-            video,
-            (result) => {
-              if (result) fire(result.getText());
-            },
-          );
+          zxingControls = await reader.decodeFromConstraints(CAMERA, video, (result) => {
+            if (result) fire(result.getText());
+          });
+          if (cancelled) zxingControls.stop();
+          else setStatus('scanning');
         }
       } catch (err) {
-        if (cancelled) return;
-        const denied = err instanceof DOMException && err.name === 'NotAllowedError';
-        setError(
+        const denied =
+          err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
+        fail(
           denied
-            ? 'Camera access was denied — you can still type the barcode below.'
+            ? 'Camera access was denied — allow it in your browser/app settings, or type the barcode below.'
             : 'Camera unavailable — you can still type the barcode below.',
         );
       }
@@ -100,7 +143,7 @@ export function BarcodeScanner({ onClose, onDetected }: Props) {
       stream?.getTracks().forEach((t) => t.stop());
       if (video) video.srcObject = null;
     };
-  }, [onDetected]);
+  }, []);
 
   const submitManual = () => {
     const code = manual.replace(/\D/g, '');
@@ -113,18 +156,26 @@ export function BarcodeScanner({ onClose, onDetected }: Props) {
         className="chamfer relative mb-3 overflow-hidden"
         style={{ background: 'rgba(2,4,9,0.8)', border: '1px solid var(--line-strong)' }}
       >
-        <video ref={videoRef} className="h-56 w-full object-cover" muted playsInline />
+        <video ref={videoRef} className="h-56 w-full object-cover" autoPlay muted playsInline />
         {/* Aiming reticle */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-10 top-1/2 h-16 -translate-y-1/2 rounded-[4px]"
           style={{ border: '1.5px solid var(--cyan)', boxShadow: '0 0 18px rgba(56,225,255,0.35)' }}
         />
+        {status !== 'error' && (
+          <span
+            className="font-head absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] tracking-[0.22em] text-[var(--cyan)]"
+            style={{ textShadow: '0 0 8px rgba(56,225,255,0.6)' }}
+          >
+            {status === 'starting' ? 'STARTING CAMERA…' : 'SCANNING…'}
+          </span>
+        )}
       </div>
       {error && <p className="mb-3 text-[12px] text-[var(--amber)]">{error}</p>}
       {!error && (
         <p className="mb-3 text-[12px] text-[var(--ink-dim)]">
-          Point the camera at the product barcode.
+          Point the camera at the product barcode and hold steady.
         </p>
       )}
       <div className="flex gap-2">

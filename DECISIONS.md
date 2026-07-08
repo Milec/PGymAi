@@ -347,6 +347,36 @@ tombstone entity check in place for pre-Fuel installs). Journal writes go
 through the debounced sync helpers, so rapid edits don't spam the network,
 and everything remains fully usable signed-out/offline.
 
+### Unified Activity Log
+
+The Training Log became the **Activity Log**: its month calendar marks
+trained days (cyan fill) and meal-logged days (violet dot) on one grid.
+Selecting a day shows that day's sessions **and** a compact FUEL panel
+(per-meal items + kcal, day totals vs target) with an "Open in Fuel" deep
+link (`/fuel?date=YYYY-MM-DD`, which the Fuel page reads on mount).
+
+### Reliability hardening (from real-device use)
+
+- **Erase Everything under sync**: erasing only IndexedDB let the next
+  reconcile restore everything from Supabase. `eraseRemoteData()` now
+  deletes every remote row (all entity tables + profile + tombstones)
+  *before* the local wipe, and aborts — leaving local data intact — if the
+  cloud delete fails. Sample-data loads/removals also go through the
+  tombstoned sync helpers so demo rows can't resurrect or duplicate.
+- **Barcode scanner**: some browsers expose `BarcodeDetector` with zero
+  supported formats — the scanner now checks `getSupportedFormats()` for
+  `ean_13` before trusting it, otherwise uses ZXing. Camera runs at
+  1280×720 (decode rates at 640×480 were poor), the effect is
+  mount-stable (parent re-renders can't restart the camera), and failures
+  (permission denied, decoder chunk failed to load) surface as explicit
+  messages with manual entry always available.
+- **Catalogue search**: the public search endpoint rate-limits at ~10
+  req/min and returns HTML error pages under load. The client now caches
+  per-query results for the session, retries once, distinguishes
+  "catalogue busy" from "offline", keeps stale results on screen through
+  transient failures, and debounces at 600 ms / 3+ chars. Barcode lookups
+  (higher rate limit) also retry once.
+
 ### Quantity model (MyFitnessPal-style)
 
 A log amount is **number of servings × serving size**. The serving-size

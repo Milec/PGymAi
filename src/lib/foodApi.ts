@@ -70,14 +70,37 @@ export function mapOffProduct(p: OffProduct): ApiFood | null {
   };
 }
 
-/** Free-text catalogue search. Throws on network failure (caller shows state). */
-export async function searchFoods(query: string, signal?: AbortSignal): Promise<ApiFood[]> {
+/** Search failure with enough shape for a useful error message. */
+export class FoodApiError extends Error {
+  /** true when the catalogue rate-limited us (try again shortly). */
+  rateLimited: boolean;
+  constructor(message: string, rateLimited = false) {
+    super(message);
+    this.name = 'FoodApiError';
+    this.rateLimited = rateLimited;
+  }
+}
+
+// The public search endpoint is rate-limited (~10 req/min per IP), so cache
+// results per query for the session — retyping or backspacing costs nothing.
+const searchCache = new Map<string, ApiFood[]>();
+const SEARCH_CACHE_MAX = 80;
+
+async function fetchSearch(query: string, signal?: AbortSignal): Promise<ApiFood[]> {
   const url =
     `${OFF_BASE}/cgi/search.pl?action=process&json=1&search_simple=1&page_size=25` +
     `&search_terms=${encodeURIComponent(query)}&fields=${FIELDS}`;
   const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`Food search failed (${res.status})`);
-  const data = (await res.json()) as { products?: OffProduct[] };
+  if (res.status === 429) throw new FoodApiError('Catalogue rate limit', true);
+  if (!res.ok) throw new FoodApiError(`Food search failed (${res.status})`);
+  // The endpoint returns an HTML error page under load — treat it as a failure
+  // rather than surfacing a JSON parse crash.
+  let data: { products?: OffProduct[] };
+  try {
+    data = (await res.json()) as { products?: OffProduct[] };
+  } catch {
+    throw new FoodApiError('Catalogue overloaded', true);
+  }
   const seen = new Set<string>();
   const out: ApiFood[] = [];
   for (const p of data.products ?? []) {
@@ -90,14 +113,50 @@ export async function searchFoods(query: string, signal?: AbortSignal): Promise<
   return out;
 }
 
-/** Barcode lookup. Resolves null when the product isn't in the catalogue. */
-export async function lookupBarcode(code: string, signal?: AbortSignal): Promise<ApiFood | null> {
-  const clean = code.replace(/\D/g, '');
-  if (!clean) return null;
+/**
+ * Free-text catalogue search: cached per query, one automatic retry on
+ * transient failure. Throws FoodApiError when both attempts fail.
+ */
+export async function searchFoods(query: string, signal?: AbortSignal): Promise<ApiFood[]> {
+  const key = query.trim().toLowerCase();
+  const cached = searchCache.get(key);
+  if (cached) return cached;
+  let result: ApiFood[];
+  try {
+    result = await fetchSearch(query, signal);
+  } catch (err) {
+    // Aborts propagate (a newer query took over); anything else gets one retry.
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    await new Promise((r) => setTimeout(r, 1200));
+    if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
+    result = await fetchSearch(query, signal);
+  }
+  if (searchCache.size >= SEARCH_CACHE_MAX) {
+    const first = searchCache.keys().next().value;
+    if (first !== undefined) searchCache.delete(first);
+  }
+  searchCache.set(key, result);
+  return result;
+}
+
+async function fetchProduct(clean: string, signal?: AbortSignal): Promise<ApiFood | null> {
   const res = await fetch(`${OFF_BASE}/api/v2/product/${clean}.json?fields=${FIELDS}`, { signal });
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Barcode lookup failed (${res.status})`);
+  if (!res.ok) throw new FoodApiError(`Barcode lookup failed (${res.status})`, res.status === 429);
   const data = (await res.json()) as { status?: number; product?: OffProduct };
   if (!data.product) return null;
   return mapOffProduct({ code: clean, ...data.product });
+}
+
+/** Barcode lookup with one retry. Resolves null when the product isn't in the catalogue. */
+export async function lookupBarcode(code: string, signal?: AbortSignal): Promise<ApiFood | null> {
+  const clean = code.replace(/\D/g, '');
+  if (!clean) return null;
+  try {
+    return await fetchProduct(clean, signal);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    await new Promise((r) => setTimeout(r, 1000));
+    return fetchProduct(clean, signal);
+  }
 }

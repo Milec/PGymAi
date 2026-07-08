@@ -7,6 +7,7 @@ import { loadDemoData } from '@/dev/demoData';
 import type { Sex } from '@/data/strengthStandards';
 import { THEMES } from '@/lib/theme';
 import { formatWeight, fromKg, toKg, type Unit } from '@/lib/units';
+import { eraseRemoteData, isSyncActive } from '@/sync/syncEngine';
 import { useAppStore } from '@/store/useAppStore';
 
 export function ProfilePage() {
@@ -30,8 +31,23 @@ export function ProfilePage() {
   };
 
   const wipeData = async () => {
-    if (!confirm('Erase ALL local data (workouts, programs, custom exercises)? This cannot be undone.'))
-      return;
+    const cloud = isSyncActive();
+    const msg = cloud
+      ? 'Erase ALL data — workouts, programs, custom exercises, and your food journal — from this device AND your cloud backup? Your account stays; this cannot be undone.'
+      : 'Erase ALL local data (workouts, programs, custom exercises, food journal)? This cannot be undone.';
+    if (!confirm(msg)) return;
+    if (cloud) {
+      // Remote first: if the cloud wipe fails, keep local data intact so the
+      // next reconcile can't resurrect a half-erased state.
+      try {
+        await eraseRemoteData();
+      } catch (err) {
+        alert(
+          `Could not erase the cloud backup (are you offline?). Nothing was deleted.\n\n${err instanceof Error ? err.message : String(err)}`,
+        );
+        return;
+      }
+    }
     await db.delete();
     location.reload();
   };
