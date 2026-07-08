@@ -1,6 +1,14 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { db } from '@/db/db';
-import type { Exercise, Profile, StoredProgram, SyncEntity, Workout } from '@/db/types';
+import type {
+  Exercise,
+  FoodLogEntry,
+  Profile,
+  SavedFood,
+  StoredProgram,
+  SyncEntity,
+  Workout,
+} from '@/db/types';
 import { supabase } from '@/lib/supabase';
 import { reconcile, type SyncRecord, type Tomb } from './merge';
 
@@ -56,6 +64,30 @@ const REGISTRY: EntityCfg[] = [
     },
     deleteLocal: async (id) => {
       await db.exercises.delete(id);
+    },
+  },
+  {
+    entity: 'food_logs',
+    table: 'food_logs',
+    readLocal: async () =>
+      (await db.foodLogs.toArray()).map((e) => ({ id: e.id, updatedAt: e.updatedAt ?? 0, data: e })),
+    writeLocal: async (data) => {
+      await db.foodLogs.put(data as unknown as FoodLogEntry);
+    },
+    deleteLocal: async (id) => {
+      await db.foodLogs.delete(id);
+    },
+  },
+  {
+    entity: 'foods',
+    table: 'foods',
+    readLocal: async () =>
+      (await db.foods.toArray()).map((f) => ({ id: f.id, updatedAt: f.updatedAt ?? 0, data: f })),
+    writeLocal: async (data) => {
+      await db.foods.put(data as unknown as SavedFood);
+    },
+    deleteLocal: async (id) => {
+      await db.foods.delete(id);
     },
   },
 ];

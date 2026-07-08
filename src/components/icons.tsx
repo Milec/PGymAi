@@ -86,6 +86,43 @@ export const IconCalendar = ({ size = 20, className }: P) => (
     <path d="M3 9h18M8 2v4M16 2v4" />
   </svg>
 );
+export const IconChevronDown = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+);
+export const IconMenu = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M4 6h16M4 12h16M4 18h10" />
+  </svg>
+);
+export const IconFuel = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    {/* fork */}
+    <path d="M7 3v5a2 2 0 0 0 2 2v11M5 3v4M9 3v4" />
+    {/* knife */}
+    <path d="M17 3c-2 2-2.5 5.5-1 8v10M16 11h2c1-3 1-6-1-8" />
+  </svg>
+);
+export const IconScan = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M3 7V4h4M17 4h4v3M21 17v3h-4M7 20H3v-3" />
+    <path d="M7 9v6M10.5 9v6M13.5 9v6M17 9v6" />
+  </svg>
+);
+export const IconSearch = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="10.5" cy="10.5" r="6.5" />
+    <path d="M15.5 15.5L21 21" />
+  </svg>
+);
+export const IconTarget = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="12" r="8" />
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 12h.01" />
+  </svg>
+);
 export const IconChevronL = ({ size = 20, className }: P) => (
   <svg {...base(size)} className={className}>
     <path d="M15 6l-6 6 6 6" />

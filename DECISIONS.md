@@ -17,8 +17,9 @@ strength-standards data source and its assumptions, and schema documentation.
 | Validation | Zod | Runtime validation of imported program JSON. |
 | Tests | Vitest (unit) + Playwright (smoke + screenshots) | Unit math/logic + real-browser verification loop. |
 
-No paid services, no runtime network dependencies. Fonts are self-hosted so
-they render offline.
+No paid services. The only runtime network dependency is the optional Open
+Food Facts food-catalogue lookup on the Fuel page (§12) — everything else,
+including fonts, is self-hosted and works offline.
 
 ## 2. Fonts (self-hosted, offline-safe)
 
@@ -271,3 +272,85 @@ Verified locally against the production build (`pnpm preview`):
   **fully usable offline** (verified by reloading with the network disabled).
 - Screenshots of every screen at 390×844 and 1440×900 in
   `artifacts/screenshots/`.
+
+## 12. Fuel — nutrition journal & macro tracking (v6)
+
+A MyFitnessPal-style dieting side of the app, kept deliberately lean.
+
+### Navigation — expandable side menu
+
+Eight flat tabs couldn't absorb a ninth destination, so navigation became a
+grouped, expandable side menu shared by desktop and mobile:
+
+- **Desktop rail**: Dashboard and Profile stay top-level; **TRAINING**
+  (Workout, Library, Progress, Strength, Programs, Log) and **NUTRITION**
+  (Fuel) are collapsible groups. Collapse state persists in localStorage
+  (`stride.nav.collapsed`); the group holding the active route is forced open
+  so the current page can never be hidden.
+- **Mobile**: the bottom bar is trimmed to the four thumb-reach destinations
+  (Deck, Lift, Fuel, Log) + a **Menu** tab that opens a slide-in drawer with
+  the full grouped nav. Less clutter than the previous 8-tab bar.
+
+### Food catalogue — Open Food Facts
+
+Search and barcode lookup use the **Open Food Facts** public API
+(world.openfoodfacts.org — free, ODbL-licensed, CORS-enabled, millions of
+products; the only runtime network dependency in the app, and an optional
+one). `src/lib/foodApi.ts` normalises products to per-100g macros
+(`energy-kcal_100g`, kJ fallback ÷ 4.184) and keeps gram/ml serving sizes;
+products without usable energy data are dropped rather than logged as
+0 kcal. Failures surface as explicit offline/error states — saved foods and
+custom foods still work with no network.
+
+### Barcode scanning
+
+`BarcodeScanner` uses the native **BarcodeDetector** API where available
+(Chrome/Edge/Android). Elsewhere (iOS Safari, Firefox) it lazy-loads a
+**ZXing** WASM-free decoder (`@zxing/browser`) — kept out of the main bundle
+via dynamic import. Manual barcode entry is always available (and is the
+path exercised in tests, since headless CI has no camera).
+
+### Targets — published formulas only
+
+- **BMR**: Mifflin-St Jeor (male +5 / female −161; 'unspecified' uses the
+  midpoint, −78). Requires weight, height, age — height was added to the
+  profile (`heightCm`).
+- **TDEE**: standard activity multipliers (1.2 / 1.375 / 1.55 / 1.725 / 1.9),
+  chosen by training frequency.
+- **Goal calories**: TDEE ± `rate × 7700 kcal / 7` for cut/bulk at
+  0.25–0.75 kg/week, floored at 1200 kcal/day.
+- **Macros**: protein by g/kg bodyweight (1.6/1.8/2.2), fat as % of calories
+  (25/30/35), carbs from the remainder at 4/9/4 kcal per gram.
+- A **manual mode** lets users type their own targets; `nutrition.auto`
+  records which mode produced them. In-app copy labels everything as a
+  planning estimate, not medical advice. All math is in `src/lib/nutrition.ts`
+  and unit-tested.
+
+### Journal storage
+
+Dexie v3 adds two local tables:
+
+- `foodLogs` — one row per logged food: local-date key (`YYYY-MM-DD`), meal
+  (breakfast/lunch/dinner/snacks), **snapshotted per-100g macros** (entries
+  stay stable if the catalogue changes), amount in grams (canonical),
+  optional serving size and barcode.
+- `foods` — reusable foods ("My Foods"): custom creations plus a cache of
+  everything logged from the catalogue (keyed by barcode so re-logs update
+  one row), surfaced for one-tap re-logging and offline use.
+
+Targets and calculator inputs live on the profile (`profile.nutrition`), so
+they **sync via the existing profile blob with no backend change**. The
+journal itself is cloud-backed too: `food_logs` and `foods` are registered
+sync entities (same JSONB + last-write-wins + tombstone model as workouts;
+tables, RLS, and Realtime in `supabase/schema.sql`, which also widens the
+tombstone entity check in place for pre-Fuel installs). Journal writes go
+through the debounced sync helpers, so rapid edits don't spam the network,
+and everything remains fully usable signed-out/offline.
+
+### Quantity model (MyFitnessPal-style)
+
+A log amount is **number of servings × serving size**. The serving-size
+options are the product's labelled serving (when the catalogue declares
+one), 100 g, 1 g (for exact gram entry), and 1 oz. Storage stays canonical
+in grams (`amountG`), so switching units never mutates history; the picker
+merely re-derives the servings count when the unit changes.
