@@ -157,6 +157,14 @@ input[type='number'] {
     transform: translateY(100vh);
   }
 }
+@keyframes drawer-in {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
 @keyframes pulse-glow {
   0%,
   100% {

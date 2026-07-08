@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo } from 'react';
 import { db } from '@/db/db';
-import type { Exercise, Workout } from '@/db/types';
+import type { Exercise, FoodLogEntry, SavedFood, Workout } from '@/db/types';
 
 export function useExercises(): Exercise[] {
   return useLiveQuery(() => db.exercises.toArray(), [], []) ?? [];
@@ -24,4 +24,16 @@ export function useFinishedWorkouts(): Workout[] {
 
 export function useAllWorkouts(): Workout[] {
   return useLiveQuery(() => db.workouts.toArray(), [], []) ?? [];
+}
+
+/** All food-journal entries for one YYYY-MM-DD day, in logging order. */
+export function useDayFoodLog(date: string): FoodLogEntry[] {
+  return (
+    useLiveQuery(() => db.foodLogs.where('date').equals(date).sortBy('loggedAt'), [date], []) ?? []
+  );
+}
+
+/** Reusable foods (custom + recently logged), most recently used first. */
+export function useSavedFoods(): SavedFood[] {
+  return useLiveQuery(() => db.foods.orderBy('lastUsedAt').reverse().toArray(), [], []) ?? [];
 }

@@ -2,8 +2,10 @@ import Dexie, { type Table } from 'dexie';
 import type {
   Deletion,
   Exercise,
+  FoodLogEntry,
   Profile,
   ProgramProgress,
+  SavedFood,
   StoredProgram,
   Workout,
 } from './types';
@@ -15,6 +17,8 @@ export class StrideDB extends Dexie {
   programs!: Table<StoredProgram, string>;
   programProgress!: Table<ProgramProgress, string>;
   deletions!: Table<Deletion, string>;
+  foodLogs!: Table<FoodLogEntry, string>;
+  foods!: Table<SavedFood, string>;
 
   constructor() {
     super('stride-db');
@@ -33,6 +37,17 @@ export class StrideDB extends Dexie {
       programs: 'id, importedAt, active, updatedAt',
       programProgress: 'programId',
       deletions: 'key, entity, deletedAt',
+    });
+    // v3 adds the nutrition journal (Fuel): per-day food logs + reusable foods.
+    this.version(3).stores({
+      exercises: 'id, name, equipment, pattern, category, bigLift, custom, updatedAt',
+      workouts: 'id, startedAt, finishedAt, programId, updatedAt',
+      profile: 'id',
+      programs: 'id, importedAt, active, updatedAt',
+      programProgress: 'programId',
+      deletions: 'key, entity, deletedAt',
+      foodLogs: 'id, date, meal, loggedAt',
+      foods: 'id, name, barcode, custom, lastUsedAt',
     });
   }
 }

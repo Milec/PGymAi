@@ -30,7 +30,12 @@ space-navy field, luminous scanlines, and instrument-panel numeric readouts.
 | **Strength Standards** | The differentiator — see below. |
 | **Programs** | Import multi-week programs (file upload or paste-JSON, Zod-validated), follow week/day with adaptive load suggestions, export any program back to JSON. Ships 3 example programs. |
 | **Training Log** | Browse every finished session (date, duration, volume, sets, lifts) and expand any one for full per-exercise set detail. A month **calendar** highlights which days you trained; tap a day to filter the log, or delete a session. |
-| **Profile** | Sex, bodyweight, age, kg/lb units (toggles everywhere), default rest time, data export/erase, and a "Load Sample Data" button. **Theme picker**: Starship HUD (default), Dark Night, Light, and Bubblegum. |
+| **Fuel (Nutrition)** | MyFitnessPal-style daily food journal divided into meals, with calorie + protein/carb/fat bars against your targets. **Auto-calculated goals** (Mifflin-St Jeor from weight/height/age/sex, training frequency, and cut/maintain/bulk rate) or manual targets. Log food by **searching the Open Food Facts catalogue** (millions of products), **scanning a barcode** (native BarcodeDetector with a lazy-loaded ZXing fallback), re-logging from **My Foods**, or creating custom foods. |
+| **Profile** | Sex, bodyweight, height, age, kg/lb units (toggles everywhere), default rest time, data export/erase, and a "Load Sample Data" button. **Theme picker**: Starship HUD (default), Dark Night, Light, and Bubblegum. |
+
+Navigation is an **expandable side menu**: collapsible TRAINING / NUTRITION
+groups on the desktop rail, and on mobile a slim bottom bar (Deck · Lift ·
+Fuel · Log) plus a Menu tab that opens the full slide-in menu.
 
 ### Screenshots
 
@@ -217,12 +222,16 @@ are in [`DECISIONS.md`](DECISIONS.md).
 src/
   components/hud/   Reusable HUD primitives: HudPanel, CornerBrackets, Readout,
                     HudButton, BandScale, Scanlines, AuroraBg, Modal, controls
+  components/fuel/  Nutrition UI: add-food flow, barcode scanner, quantity
+                    editor, goal calculator, entry editor
   data/             162-exercise seed library, muscle taxonomy, strength standards
   db/               Dexie schema, types, first-run seeding
   fixtures/         3 example importable programs
   hooks/            Live queries (dexie-react-hooks), ticking clock
-  lib/              units, e1RM, progression engine, analytics, program runner
-  routes/           Dashboard, Workout, Library, Progress, Strength, Programs, Profile
+  lib/              units, e1RM, progression engine, analytics, program runner,
+                    nutrition math (BMR/TDEE/macros), Open Food Facts client
+  routes/           Dashboard, Workout, Library, Progress, Strength, Programs,
+                    History, Fuel, Profile
   schema/           Zod program schema + validation
   store/            Zustand stores (app state + auth/sync)
   sync/             Supabase sync engine, last-write-wins merge, local helpers
@@ -235,8 +244,14 @@ scripts/            icon + screenshot generators
 
 ## Guardrails & Limitations
 
-- **Local-first**: no secrets, no external runtime dependencies. Your data
-  never leaves the device.
+- **Local-first**: no secrets; your data never leaves the device. The only
+  external runtime call is the optional Open Food Facts lookup when you search
+  or scan a food on the Fuel page — logged foods are snapshotted locally, so
+  the journal itself works fully offline.
 - The strength comparison is a **ratio model of approximate reference bands**,
   not authoritative or medical guidance — see `DECISIONS.md`.
 - Estimated 1RM formulas lose accuracy above ~12 reps (flagged in-app).
+- Macro targets use the published Mifflin-St Jeor equation and standard
+  activity multipliers — planning estimates, not medical advice.
+- Food logs are stored locally (not yet cloud-synced); macro **targets** ride
+  along with the synced profile.

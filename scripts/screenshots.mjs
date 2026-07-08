@@ -13,6 +13,7 @@ const routes = [
   ['strength', '/strength'],
   ['programs', '/programs'],
   ['history', '/history'],
+  ['fuel', '/fuel'],
   ['profile', '/profile'],
 ];
 

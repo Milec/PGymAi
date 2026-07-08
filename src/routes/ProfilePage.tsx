@@ -129,14 +129,25 @@ export function ProfilePage() {
           </div>
         </div>
 
-        <div className="mt-4">
-          <Field label={`Bodyweight (${unit})`} hint="Used for the bodyweight-relative strength comparison.">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field label={`Bodyweight (${unit})`} hint="Used for strength comparison and macro targets.">
             <HudInput
               type="number"
               inputMode="decimal"
               value={bw}
               onChange={(e) => setBw(e.target.value)}
               onBlur={commitBw}
+            />
+          </Field>
+          <Field label="Height (cm)" hint="Used by the Fuel target calculator.">
+            <HudInput
+              type="number"
+              inputMode="decimal"
+              value={profile.heightCm ?? ''}
+              onChange={(e) =>
+                void updateProfile({ heightCm: e.target.value ? parseFloat(e.target.value) : undefined })
+              }
+              placeholder="—"
             />
           </Field>
         </div>
@@ -199,13 +210,23 @@ export function ProfilePage() {
 }
 
 async function exportAll() {
-  const [workouts, programs, exercises, profile] = await Promise.all([
+  const [workouts, programs, exercises, profile, foodLogs, foods] = await Promise.all([
     db.workouts.toArray(),
     db.programs.toArray(),
     db.exercises.filter((e) => !!e.custom).toArray(),
     db.profile.get('me'),
+    db.foodLogs.toArray(),
+    db.foods.toArray(),
   ]);
-  const payload = { exportedAt: new Date().toISOString(), profile, workouts, programs, customExercises: exercises };
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    profile,
+    workouts,
+    programs,
+    customExercises: exercises,
+    foodLogs,
+    foods,
+  };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

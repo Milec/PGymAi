@@ -25,6 +25,7 @@ test('every primary route renders', async ({ page }) => {
     ['/#/strength', /strength standards/i],
     ['/#/programs', /programs/i],
     ['/#/history', /training log/i],
+    ['/#/fuel', /fuel/i],
     ['/#/profile', /profile & settings/i],
   ];
   for (const [route, heading] of routes) {
@@ -206,6 +207,55 @@ test('cloud sync account panel and auth modal render', async ({ page }) => {
     await expect(page.getByPlaceholder('you@example.com')).toBeVisible();
     await expect(page.getByRole('button', { name: /magic link/i })).toBeVisible();
   }
+});
+
+test('fuel: calibrated targets + custom food logging end to end', async ({ page }) => {
+  await freshApp(page);
+  await page.goto('/#/fuel');
+
+  // Calibrate macro targets from body stats (Mifflin-St Jeor).
+  await page.getByRole('button', { name: /calibrate targets/i }).click();
+  await page.getByLabel(/height/i).fill('180');
+  await page.getByLabel(/age/i).fill('30');
+  await page.getByRole('button', { name: /^male$/i }).click();
+  // Preview shows computed maintenance before applying.
+  await expect(page.getByText('MAINTENANCE')).toBeVisible();
+  await page.getByRole('button', { name: /apply targets/i }).click();
+  await expect(page.getByText('CONSUMED')).toBeVisible();
+  await expect(page.getByText('PROTEIN').first()).toBeVisible();
+
+  // Log a custom food into Breakfast (no network needed).
+  await page.getByRole('button', { name: /add food to breakfast/i }).click();
+  await page.getByRole('button', { name: /create custom food/i }).click();
+  await page.getByLabel(/^name$/i).fill('Overnight Oats');
+  await page.getByRole('spinbutton', { name: /calories/i }).fill('350');
+  await page.getByRole('spinbutton', { name: /protein/i }).fill('20');
+  await page.getByRole('spinbutton', { name: /carbs/i }).fill('50');
+  await page.getByRole('spinbutton', { name: /fat \(g\)/i }).fill('8');
+  await page.getByRole('button', { name: /continue/i }).click();
+  await page.getByRole('button', { name: /log to breakfast/i }).click();
+
+  // The journal entry appears with its calories counted.
+  await expect(page.getByText('Overnight Oats')).toBeVisible();
+  await expect(page.getByText(/350 kcal · P 20/)).toBeVisible();
+
+  // It's kept as a reusable "My Food" for the next log.
+  await page.getByRole('button', { name: /add food to lunch/i }).click();
+  await expect(page.getByText(/RECENT & MY FOODS/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Overnight Oats custom/ })).toBeVisible();
+});
+
+test('expandable side menu groups collapse and expand', async ({ page }) => {
+  await freshApp(page);
+  // Desktop rail: NUTRITION group is expanded by default and holds Fuel.
+  const fuelLink = page.getByRole('link', { name: 'Fuel' });
+  await expect(fuelLink).toBeVisible();
+  await page.getByRole('button', { name: 'NUTRITION' }).click();
+  await expect(fuelLink).toBeHidden();
+  await page.getByRole('button', { name: 'NUTRITION' }).click();
+  await expect(fuelLink).toBeVisible();
+  await fuelLink.click();
+  await expect(page.getByRole('heading', { name: /^fuel$/i })).toBeVisible();
 });
 
 test('adding an example program then following it works', async ({ page }) => {
