@@ -138,6 +138,37 @@ async function seedDemoFoodDay(): Promise<void> {
   for (const e of entries) await persistFoodLog(e);
 }
 
+/** A plausible day of eating for today's Fuel journal (id-prefixed so
+ * re-running the loader replaces rather than duplicates it). */
+async function seedDemoFoodDay(): Promise<void> {
+  await db.foodLogs.filter((e) => e.id.startsWith('demofood-')).delete();
+  const date = dateKey();
+  const day: [MealId, string, string | undefined, MacroSet, number, number?][] = [
+    ['breakfast', 'Rolled Oats (cooked)', undefined, { kcal: 71, proteinG: 2.5, carbsG: 12, fatG: 1.5 }, 300],
+    ['breakfast', 'Greek Yogurt 2%', 'Fage', { kcal: 73, proteinG: 9.9, carbsG: 3.9, fatG: 1.9 }, 170, 170],
+    ['lunch', 'Chicken Breast (grilled)', undefined, { kcal: 165, proteinG: 31, carbsG: 0, fatG: 3.6 }, 180],
+    ['lunch', 'Basmati Rice (cooked)', undefined, { kcal: 130, proteinG: 2.7, carbsG: 28, fatG: 0.3 }, 250],
+    ['dinner', 'Salmon Fillet', undefined, { kcal: 208, proteinG: 20, carbsG: 0, fatG: 13 }, 200],
+    ['dinner', 'Sweet Potato (baked)', undefined, { kcal: 90, proteinG: 2, carbsG: 21, fatG: 0.1 }, 250],
+    ['snacks', 'Whey Protein', 'Optimum Nutrition', { kcal: 400, proteinG: 80, carbsG: 10, fatG: 5 }, 30, 30],
+    ['snacks', 'Banana', undefined, { kcal: 89, proteinG: 1.1, carbsG: 23, fatG: 0.3 }, 120, 120],
+  ];
+  const now = Date.now();
+  const entries: FoodLogEntry[] = day.map(([meal, name, brand, per100, amountG, servingG], i) => ({
+    id: `demofood-${i}`,
+    date,
+    meal,
+    name,
+    brand,
+    per100,
+    amountG,
+    servingG,
+    loggedAt: now - (day.length - i) * 60000,
+    updatedAt: now,
+  }));
+  await db.foodLogs.bulkPut(entries);
+}
+
 export async function hasDemoData(): Promise<boolean> {
   return (await db.workouts.filter((w) => w.title.startsWith('[Demo]')).count()) > 0;
 }
