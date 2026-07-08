@@ -26,6 +26,11 @@ export function useAllWorkouts(): Workout[] {
   return useLiveQuery(() => db.workouts.toArray(), [], []) ?? [];
 }
 
+/** Every food-journal entry (for the activity calendar). */
+export function useAllFoodLogs(): FoodLogEntry[] {
+  return useLiveQuery(() => db.foodLogs.toArray(), [], []) ?? [];
+}
+
 /** All food-journal entries for one YYYY-MM-DD day, in logging order. */
 export function useDayFoodLog(date: string): FoodLogEntry[] {
   return (

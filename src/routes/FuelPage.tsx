@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { EmptyState, PageTitle } from '@/components/common';
 import { AddFoodModal } from '@/components/fuel/AddFoodModal';
 import { EditEntryModal } from '@/components/fuel/EditEntryModal';
@@ -25,7 +26,12 @@ export function FuelPage() {
   const targets = profile.nutrition?.targets ?? null;
 
   const today = dateKey();
-  const [date, setDate] = useState(today);
+  // Deep link from the Activity Log calendar: /fuel?date=YYYY-MM-DD.
+  const [params] = useSearchParams();
+  const [date, setDate] = useState(() => {
+    const p = params.get('date');
+    return p && /^\d{4}-\d{2}-\d{2}$/.test(p) ? p : today;
+  });
   const entries = useDayFoodLog(date);
 
   const [goalOpen, setGoalOpen] = useState(false);

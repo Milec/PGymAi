@@ -11,13 +11,17 @@ import {
   type MealId,
 } from '@/lib/nutrition';
 import { roundToIncrement } from '@/lib/units';
+import { persistFoodLog, persistWorkout, removeFoodLog, removeWorkout } from '@/sync/local';
 
 /**
  * Generate a realistic ~7-week training history so charts, PRs, streaks and
  * strength comparisons have data. Used by the "Load Sample Data" button.
+ * All writes/deletes go through the sync helpers so sample data behaves
+ * correctly under cloud sync (tombstoned removal, no resurrection).
  */
 export async function loadDemoData(): Promise<void> {
-  await db.workouts.filter((w) => w.title.startsWith('[Demo]')).delete();
+  const oldDemo = await db.workouts.filter((w) => w.title.startsWith('[Demo]')).toArray();
+  for (const w of oldDemo) await removeWorkout(w.id);
 
   // Set a sensible demo profile if still on defaults.
   const profile = await db.profile.get('me');
@@ -98,14 +102,16 @@ export async function loadDemoData(): Promise<void> {
     });
   }
 
-  await db.workouts.bulkAdd(workouts);
+  for (const w of workouts) await persistWorkout(w);
 }
 
 /** A plausible day of eating for today's Fuel journal (id-prefixed so
  * re-running the loader replaces rather than duplicates it). */
 async function seedDemoFoodDay(): Promise<void> {
-  await db.foodLogs.filter((e) => e.id.startsWith('demofood-')).delete();
+  const oldFood = await db.foodLogs.filter((e) => e.id.startsWith('demofood-')).toArray();
+  for (const e of oldFood) await removeFoodLog(e.id);
   const date = dateKey();
+  const runId = Date.now();
   const day: [MealId, string, string | undefined, MacroSet, number, number?][] = [
     ['breakfast', 'Rolled Oats (cooked)', undefined, { kcal: 71, proteinG: 2.5, carbsG: 12, fatG: 1.5 }, 300],
     ['breakfast', 'Greek Yogurt 2%', 'Fage', { kcal: 73, proteinG: 9.9, carbsG: 3.9, fatG: 1.9 }, 170, 170],
@@ -118,7 +124,8 @@ async function seedDemoFoodDay(): Promise<void> {
   ];
   const now = Date.now();
   const entries: FoodLogEntry[] = day.map(([meal, name, brand, per100, amountG, servingG], i) => ({
-    id: `demofood-${i}`,
+    // Unique per load so a re-seed can't collide with its own tombstones.
+    id: `demofood-${runId}-${i}`,
     date,
     meal,
     name,
@@ -127,9 +134,8 @@ async function seedDemoFoodDay(): Promise<void> {
     amountG,
     servingG,
     loggedAt: now - (day.length - i) * 60000,
-    updatedAt: now,
   }));
-  await db.foodLogs.bulkPut(entries);
+  for (const e of entries) await persistFoodLog(e);
 }
 
 export async function hasDemoData(): Promise<boolean> {

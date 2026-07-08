@@ -24,7 +24,7 @@ test('every primary route renders', async ({ page }) => {
     ['/#/progress', /progress/i],
     ['/#/strength', /strength standards/i],
     ['/#/programs', /programs/i],
-    ['/#/history', /training log/i],
+    ['/#/history', /activity log/i],
     ['/#/fuel', /fuel/i],
     ['/#/profile', /profile & settings/i],
   ];
@@ -178,15 +178,15 @@ test('muscle balance follows the volume chart period', async ({ page }) => {
   await expect(page.getByText(/last 4w/i)).toBeVisible();
 });
 
-test('training log shows sessions and calendar', async ({ page }) => {
+test('activity log shows sessions, meals, and calendar', async ({ page }) => {
   await freshApp(page);
-  // Seed a training history via the app's own demo loader.
+  // Seed training + nutrition history via the app's own demo loader.
   await page.evaluate(async () => {
     const m = await import('/src/dev/demoData.ts');
     await m.loadDemoData();
   });
   await page.goto('/#/history');
-  await expect(page.getByRole('heading', { name: /training log/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /activity log/i })).toBeVisible();
   await expect(page.getByText('CALENDAR')).toBeVisible();
 
   // A session card is listed; expanding it reveals per-exercise set detail.
@@ -194,6 +194,15 @@ test('training log shows sessions and calendar', async ({ page }) => {
   await expect(card).toBeVisible();
   await card.click();
   await expect(page.getByText(/Back Squat|Deadlift|Bench Press/).first()).toBeVisible();
+
+  // The demo seeds today's meals too: selecting today on the calendar shows
+  // the FUEL panel with the day's meals, and deep-links into the Fuel page.
+  await page.getByRole('button', { name: `Select day ${new Date().getDate()}` }).click();
+  await expect(page.getByRole('button', { name: /open in fuel/i })).toBeVisible();
+  await expect(page.getByText(/Rolled Oats/).first()).toBeVisible();
+  await page.getByRole('button', { name: /open in fuel/i }).click();
+  await expect(page.getByRole('heading', { name: /^fuel$/i })).toBeVisible();
+  await expect(page.getByText('Rolled Oats (cooked)')).toBeVisible();
 });
 
 test('cloud sync account panel and auth modal render', async ({ page }) => {
