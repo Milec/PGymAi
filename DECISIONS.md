@@ -432,6 +432,21 @@ days with at least one logged food** (an unlogged day is missing data, not
 zero intake — the page says so), and chart axes are made continuous by
 inserting explicit zero-macro gap days rather than skipping dates.
 
+### Hydration tracker (v10)
+
+Same goal scheme as macros: the daily water target auto-derives from the
+user's metrics — the common **~33 ml/kg bodyweight** heuristic plus an
+activity bump (0–1000 ml by training frequency, reusing the profile's
+activity level) rounded to 50 ml — with a manual override. Settings live in
+`profile.hydration` (syncs with the profile blob); when unset or `auto`,
+the target tracks bodyweight/activity changes live. Intake is logged as
+per-event rows (`waterLogs`, Dexie v5; `water_logs` sync entity with the
+usual JSONB/LWW/tombstone model) so the last pour can be undone. UI: a
+HYDRATION panel on the Fuel page (per-day, follows the day navigator) with
+one-tap +250/+500/+1000 ml chips, undo, and a target modal that shows the
+formula breakdown; Trends gains an avg-water/day tile. Labelled a planning
+heuristic, not medical advice.
+
 ### Quantity model (MyFitnessPal-style)
 
 A log amount is **number of servings × serving size**. The serving-size

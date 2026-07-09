@@ -4,6 +4,7 @@ import { EmptyState, PageTitle } from '@/components/common';
 import { AddFoodModal } from '@/components/fuel/AddFoodModal';
 import { EditEntryModal } from '@/components/fuel/EditEntryModal';
 import { GoalCalculatorModal } from '@/components/fuel/GoalCalculatorModal';
+import { HydrationPanel } from '@/components/fuel/HydrationPanel';
 import { Chip, HudButton, HudPanel, Readout, Tag } from '@/components/hud';
 import { IconChevronL, IconChevronR, IconPlus, IconTarget } from '@/components/icons';
 import type { FoodLogEntry } from '@/db/types';
@@ -133,6 +134,8 @@ export function FuelPage() {
           </div>
         )}
       </HudPanel>
+
+      <HydrationPanel date={date} />
 
       {/* Meal journal */}
       {entries.length === 0 && (

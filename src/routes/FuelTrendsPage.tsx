@@ -13,8 +13,9 @@ import {
 } from 'recharts';
 import { EmptyState, PageTitle, StatTile } from '@/components/common';
 import { Chip, HudPanel } from '@/components/hud';
-import { useAllFoodLogs } from '@/hooks/useLive';
+import { useAllFoodLogs, useAllWaterLogs } from '@/hooks/useLive';
 import { averageMacros, dailyTotals, fillGaps, filterPeriod } from '@/lib/fuelStats';
+import { dateKey, shiftDateKey, waterTargetMl } from '@/lib/nutrition';
 import { useAppStore } from '@/store/useAppStore';
 
 const tooltipStyle: React.CSSProperties = {
@@ -36,12 +37,31 @@ const PERIODS = [
 
 export function FuelTrendsPage() {
   const entries = useAllFoodLogs();
-  const targets = useAppStore((s) => s.profile.nutrition?.targets ?? null);
+  const waterLogs = useAllWaterLogs();
+  const profile = useAppStore((s) => s.profile);
+  const targets = profile.nutrition?.targets ?? null;
   const [period, setPeriod] = useState<number>(30);
 
   const allDays = useMemo(() => dailyTotals(entries), [entries]);
   const days = useMemo(() => filterPeriod(allDays, period), [allDays, period]);
   const avg = useMemo(() => averageMacros(days), [days]);
+
+  // Avg water/day across days with water logged in the same window.
+  const avgWaterMl = useMemo(() => {
+    const since = period > 0 ? shiftDateKey(dateKey(), -(period - 1)) : '';
+    const byDay = new Map<string, number>();
+    for (const w of waterLogs) {
+      if (w.date >= since) byDay.set(w.date, (byDay.get(w.date) ?? 0) + w.ml);
+    }
+    if (byDay.size === 0) return null;
+    let sum = 0;
+    for (const v of byDay.values()) sum += v;
+    return sum / byDay.size;
+  }, [waterLogs, period]);
+  const waterTarget =
+    profile.hydration && !profile.hydration.auto
+      ? profile.hydration.targetMl
+      : waterTargetMl(profile.bodyweightKg, profile.nutrition?.activity ?? 'moderate');
 
   const chartData = useMemo(
     () =>
@@ -87,7 +107,7 @@ export function FuelTrendsPage() {
       </div>
 
       {avg ? (
-        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
           <StatTile
             label="Avg kcal / day"
             value={Math.round(avg.kcal)}
@@ -111,6 +131,12 @@ export function FuelTrendsPage() {
             value={Math.round(avg.fatG)}
             unit={targets ? `/ ${targets.fatG} g` : 'g'}
             color="var(--ink)"
+          />
+          <StatTile
+            label="Avg water / day"
+            value={avgWaterMl !== null ? (avgWaterMl / 1000).toFixed(1) : '—'}
+            unit={`/ ${(waterTarget / 1000).toFixed(1)} L`}
+            color="var(--up)"
           />
         </div>
       ) : (

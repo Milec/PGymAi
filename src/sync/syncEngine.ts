@@ -7,6 +7,7 @@ import type {
   SavedFood,
   StoredProgram,
   SyncEntity,
+  WaterLog,
   Workout,
   WorkoutPlan,
 } from '@/db/types';
@@ -101,6 +102,18 @@ const REGISTRY: EntityCfg[] = [
     },
     deleteLocal: async (id) => {
       await db.plans.delete(id);
+    },
+  },
+  {
+    entity: 'water_logs',
+    table: 'water_logs',
+    readLocal: async () =>
+      (await db.waterLogs.toArray()).map((w) => ({ id: w.id, updatedAt: w.updatedAt ?? 0, data: w })),
+    writeLocal: async (data) => {
+      await db.waterLogs.put(data as unknown as WaterLog);
+    },
+    deleteLocal: async (id) => {
+      await db.waterLogs.delete(id);
     },
   },
 ];

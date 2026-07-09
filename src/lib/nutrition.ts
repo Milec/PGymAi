@@ -125,6 +125,38 @@ export interface NutritionSettings {
   fatPercent: number;
 }
 
+// ---------------------------------------------------------------------------
+// Hydration
+// ---------------------------------------------------------------------------
+
+/** Hydration target + how it was set, kept on the profile (syncs). */
+export interface HydrationSettings {
+  targetMl: number;
+  /** true → derived from bodyweight/activity; false → manual override. */
+  auto: boolean;
+}
+
+/** Extra daily water per activity level (ml) — training days sweat. */
+const WATER_ACTIVITY_BUMP_ML: Record<ActivityLevel, number> = {
+  sedentary: 0,
+  light: 250,
+  moderate: 500,
+  very: 750,
+  athlete: 1000,
+};
+
+/**
+ * Daily water target: the common ~33 ml/kg bodyweight heuristic plus an
+ * activity bump, rounded to 50 ml. A planning reference, not medical advice.
+ */
+export function waterTargetMl(bodyweightKg: number, activity: ActivityLevel): number {
+  const raw = 33 * bodyweightKg + WATER_ACTIVITY_BUMP_ML[activity];
+  return Math.round(raw / 50) * 50;
+}
+
+/** One-tap add sizes (ml): glass, bottle, large bottle. */
+export const WATER_QUICK_ADDS_ML = [250, 500, 1000];
+
 export const DEFAULT_NUTRITION_INPUTS = {
   activity: 'moderate' as ActivityLevel,
   goal: 'maintain' as DietGoal,

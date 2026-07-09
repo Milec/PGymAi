@@ -6,6 +6,7 @@ import type {
   SavedFood,
   StoredProgram,
   SyncEntity,
+  WaterLog,
   Workout,
   WorkoutPlan,
 } from '@/db/types';
@@ -109,6 +110,18 @@ export async function persistPlan(p: WorkoutPlan): Promise<WorkoutPlan> {
 export async function removePlan(id: string): Promise<void> {
   await db.plans.delete(id);
   void syncDeleteRecord('plans', id);
+}
+
+// --- Water logs ---
+export async function persistWaterLog(w: WaterLog): Promise<WaterLog> {
+  const s = stamp(w);
+  await db.waterLogs.put(s);
+  schedulePush('water_logs', s);
+  return s;
+}
+export async function removeWaterLog(id: string): Promise<void> {
+  await db.waterLogs.delete(id);
+  void syncDeleteRecord('water_logs', id);
 }
 
 // --- Profile ---
