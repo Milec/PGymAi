@@ -9,6 +9,7 @@ import {
   waterTargetMl,
   type ActivityLevel,
 } from '@/lib/nutrition';
+import { formatWeight } from '@/lib/units';
 import { persistWaterLog, removeWaterLog } from '@/sync/local';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -76,16 +77,14 @@ export function HydrationPanel({ date }: { date: string }) {
         </div>
       </div>
 
-      <button
-        className="mt-3 block h-[6px] w-full cursor-pointer overflow-hidden rounded-full"
+      <div
+        className="mt-3 h-[6px] w-full overflow-hidden rounded-full"
         style={{ background: 'rgba(120,200,255,0.08)', border: '1px solid var(--line)' }}
         role="progressbar"
         aria-label="Water"
         aria-valuenow={totalMl}
         aria-valuemin={0}
         aria-valuemax={targetMl}
-        onClick={() => setTargetOpen(true)}
-        title="Adjust target"
       >
         <span
           className="block h-full rounded-full transition-all duration-500"
@@ -95,12 +94,12 @@ export function HydrationPanel({ date }: { date: string }) {
             boxShadow: `0 0 8px ${done ? 'var(--up)' : 'var(--cyan)'}`,
           }}
         />
-      </button>
+      </div>
       <div className="mt-1.5 flex items-center justify-between text-[10px] text-[var(--ink-faint)]">
         <span>
           {hydration && !hydration.auto
             ? 'manual target'
-            : `auto · ${Math.round(profile.bodyweightKg)} kg · ${ACTIVITY_LEVELS.find((a) => a.id === activity)?.label.toLowerCase()}`}
+            : `auto · ${formatWeight(profile.bodyweightKg, profile.units, 0)} ${profile.units} · ${ACTIVITY_LEVELS.find((a) => a.id === activity)?.label.toLowerCase()}`}
         </span>
         <button className="underline transition-colors hover:text-[var(--cyan)]" onClick={() => setTargetOpen(true)}>
           adjust target

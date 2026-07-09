@@ -63,6 +63,7 @@ export function FuelTrendsPage() {
       ? profile.hydration.targetMl
       : waterTargetMl(profile.bodyweightKg, profile.nutrition?.activity ?? 'moderate');
 
+  // Unlogged days render as chart gaps (null), not misleading zero intake.
   const chartData = useMemo(
     () =>
       fillGaps(days, period).map((d) => ({
@@ -70,9 +71,8 @@ export function FuelTrendsPage() {
           month: 'short',
           day: 'numeric',
         }),
-        kcal: Math.round(d.macros.kcal),
-        protein: Math.round(d.macros.proteinG),
-        logged: d.logged,
+        kcal: d.logged ? Math.round(d.macros.kcal) : null,
+        protein: d.logged ? Math.round(d.macros.proteinG) : null,
       })),
     [days, period],
   );
