@@ -314,6 +314,28 @@ gram serving sizes. Layering:
   best-effort, low-rate-limit last resort. Mirrors the Supabase env
   pattern: unset → the app simply behaves as before.
 
+### Search relevance (v11)
+
+Both upstream searches match loosely — OFF's legacy endpoint ORs terms
+across every field ("lean ground beef" returned anything containing
+"lean" *or* "beef", Lean Cuisine included) and returned USDA's good
+matches appended below the noise. Three fixes:
+
+- **OFF popularity sort** (`sort_by=unique_scans_n`): commonly-scanned
+  staples surface instead of random one-scan entries; the scan count is
+  kept on results as a ranking signal.
+- **USDA generic foods**: FDC search now includes **SR Legacy** alongside
+  Branded, so queries like "lean ground beef" return USDA's reference
+  entries ("Beef, ground, 93% lean meat / 7% fat, raw" — the ideal answer
+  for whole foods). They have no UPC, so they key by a stable
+  `fdc-<fdcId>` pseudo-id and carry a "USDA" brand tag. (Foundation data
+  is skipped: it duplicates SR items and omits the kcal nutrient in
+  search responses.)
+- **Client-side ranking** (`rankFoods`, unit-tested): results matching
+  *every* query token (word-start match, name or brand) rank first;
+  if that tier is thin, all-but-one matches follow; zero-match noise is
+  dropped. Name hits outweigh brand hits, and popularity breaks ties.
+
 ### Food catalogue — Open Food Facts
 
 Search and barcode lookup use the **Open Food Facts** public API

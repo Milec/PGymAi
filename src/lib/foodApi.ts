@@ -22,10 +22,12 @@ export interface ApiFood {
   per100: MacroSet;
   /** Grams in one labelled serving, when the product declares it. */
   servingG?: number;
+  /** OFF unique scan count — a proxy for how commonly logged the product is. */
+  popularity?: number;
 }
 
 const OFF_BASE = 'https://world.openfoodfacts.org';
-const FIELDS = 'code,product_name,brands,nutriments,serving_quantity,serving_quantity_unit';
+const FIELDS = 'code,product_name,brands,nutriments,serving_quantity,serving_quantity_unit,unique_scans_n';
 
 interface OffNutriments {
   'energy-kcal_100g'?: number;
@@ -42,6 +44,7 @@ interface OffProduct {
   nutriments?: OffNutriments;
   serving_quantity?: number | string;
   serving_quantity_unit?: string;
+  unique_scans_n?: number;
 }
 
 function num(v: unknown): number | undefined {
@@ -64,6 +67,8 @@ interface FdcNutrient {
   value?: number;
 }
 interface FdcFood {
+  fdcId?: number;
+  dataType?: string;
   description?: string;
   brandName?: string;
   brandOwner?: string;
@@ -78,10 +83,12 @@ function titleCase(s: string): string {
   return s.toLowerCase().replace(/(^|[\s(/-])\w/g, (c) => c.toUpperCase());
 }
 
-/** Map an FDC branded food (per-100g nutrients) to a normalised food. */
+/** Map an FDC food (per-100g nutrients) to a normalised food. Branded foods
+ * key by UPC; generic SR Legacy foods get a stable pseudo-id instead. */
 export function mapFdcFood(f: FdcFood): ApiFood | null {
   const name = f.description?.trim();
-  if (!name || !f.gtinUpc) return null;
+  const key = f.gtinUpc || (f.fdcId ? `fdc-${f.fdcId}` : undefined);
+  if (!name || !key) return null;
   const byNum = new Map<string, number>();
   for (const n of f.foodNutrients ?? []) {
     if (n.nutrientNumber && typeof n.value === 'number') byNum.set(n.nutrientNumber, n.value);
@@ -89,11 +96,12 @@ export function mapFdcFood(f: FdcFood): ApiFood | null {
   const kcal = byNum.get('208'); // Energy (kcal), per 100 g
   if (kcal === undefined) return null;
   const unit = (f.servingSizeUnit ?? '').toLowerCase();
-  const brand = f.brandName?.trim() || f.brandOwner?.trim();
+  const rawBrand = f.brandName?.trim() || f.brandOwner?.trim();
   return {
-    barcode: f.gtinUpc,
+    barcode: key,
     name: titleCase(name),
-    brand: brand ? titleCase(brand) : undefined,
+    // Generic (non-branded) foods surface as USDA reference entries.
+    brand: rawBrand ? titleCase(rawBrand) : f.gtinUpc ? undefined : 'USDA',
     per100: {
       kcal,
       proteinG: byNum.get('203') ?? 0,
@@ -109,9 +117,15 @@ interface FdcSearchResponse {
   foods?: FdcFood[];
 }
 
-async function fdcQuery(query: string, pageSize: number, key: string, signal?: AbortSignal): Promise<ApiFood[]> {
+async function fdcQuery(
+  query: string,
+  pageSize: number,
+  key: string,
+  dataType: string,
+  signal?: AbortSignal,
+): Promise<ApiFood[]> {
   const url =
-    `${FDC_BASE}/foods/search?api_key=${encodeURIComponent(key)}&dataType=Branded` +
+    `${FDC_BASE}/foods/search?api_key=${encodeURIComponent(key)}&dataType=${dataType}` +
     `&pageSize=${pageSize}&query=${encodeURIComponent(query)}`;
   const res = await fetch(url, { signal });
   if (res.status === 429) throw new FoodApiError('USDA rate limit', true);
@@ -132,13 +146,14 @@ async function fdcSearch(query: string, signal?: AbortSignal): Promise<ApiFood[]
     .filter(Boolean)
     .map((t) => `+${t}`)
     .join(' ');
-  return fdcQuery(terms, 25, FDC_KEY, signal);
+  // SR Legacy adds USDA's generic whole foods ("Beef, ground, 93% lean...").
+  return fdcQuery(terms, 25, FDC_KEY, 'Branded,SR%20Legacy', signal);
 }
 
 /** Barcode lookup on FDC via the gtinUpc field (exact match). */
 async function fdcBarcode(code: string, signal?: AbortSignal): Promise<ApiFood | null> {
   const key = FDC_KEY || 'DEMO_KEY';
-  const hits = await fdcQuery(`gtinUpc:${code}`, 1, key, signal);
+  const hits = await fdcQuery(`gtinUpc:${code}`, 1, key, 'Branded', signal);
   return hits[0] ?? null;
 }
 
@@ -187,6 +202,7 @@ export function mapOffProduct(p: OffProduct): ApiFood | null {
     },
     // ml ≈ g is close enough for logging liquids; other units are ignored.
     servingG: servingQ && (servingUnit === 'g' || servingUnit === 'ml') ? servingQ : undefined,
+    popularity: num(p.unique_scans_n),
   };
 }
 
@@ -201,6 +217,67 @@ export class FoodApiError extends Error {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Relevance ranking
+// ---------------------------------------------------------------------------
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Query tokens: lowercase words, keeping things like "93%" and "2" intact. */
+function tokenize(query: string): string[] {
+  return query
+    .toLowerCase()
+    .split(/[^a-z0-9%]+/)
+    .filter((t) => t.length > 1 || /\d/.test(t));
+}
+
+/** Does the text contain the token at a word start ("bee" matches "beef")? */
+function wordHit(text: string, token: string): boolean {
+  return new RegExp(`(^|[^a-z0-9])${escapeRe(token)}`).test(text);
+}
+
+/**
+ * Re-rank merged catalogue results against what the user actually typed.
+ * Both upstream searches match loosely (OFF ORs terms across all fields), so:
+ * results matching EVERY query token (in name or brand) rank first; if that
+ * tier is thin, all-but-one matches follow; zero-match noise is dropped.
+ * Within a tier: name hits beat brand hits, and OFF scan-count popularity
+ * breaks ties so common staples beat obscure variants.
+ */
+export function rankFoods(query: string, foods: ApiFood[]): ApiFood[] {
+  const tokens = tokenize(query);
+  if (tokens.length === 0) return foods;
+
+  const scored = foods.map((food, index) => {
+    const name = food.name.toLowerCase();
+    const brand = (food.brand ?? '').toLowerCase();
+    let nameHits = 0;
+    let brandHits = 0;
+    for (const t of tokens) {
+      if (wordHit(name, t)) nameHits += 1;
+      else if (wordHit(brand, t)) brandHits += 1;
+    }
+    const hits = nameHits + brandHits;
+    const score =
+      nameHits * 12 +
+      brandHits * 4 +
+      (nameHits === tokens.length ? 40 : 0) +
+      (name.startsWith(tokens[0]) ? 6 : 0) +
+      Math.min(Math.log10((food.popularity ?? 0) + 1) * 6, 18) -
+      Math.min(name.length / 25, 3);
+    return { food, index, hits, score };
+  });
+
+  const byScore = (a: (typeof scored)[number], b: (typeof scored)[number]) =>
+    b.score - a.score || a.index - b.index;
+  const full = scored.filter((s) => s.hits >= tokens.length).sort(byScore);
+  if (full.length >= 8) return full.map((s) => s.food);
+  const near = scored
+    .filter((s) => s.hits < tokens.length && s.hits >= tokens.length - 1 && s.hits > 0)
+    .sort(byScore);
+  return [...full, ...near].map((s) => s.food);
+}
+
 // The public search endpoint is rate-limited (~10 req/min per IP), so cache
 // results per query for the session — retyping or backspacing costs nothing.
 const searchCache = new Map<string, ApiFood[]>();
@@ -208,7 +285,7 @@ const SEARCH_CACHE_MAX = 80;
 
 async function fetchSearch(query: string, signal?: AbortSignal): Promise<ApiFood[]> {
   const url =
-    `${OFF_BASE}/cgi/search.pl?action=process&json=1&search_simple=1&page_size=25` +
+    `${OFF_BASE}/cgi/search.pl?action=process&json=1&search_simple=1&page_size=25&sort_by=unique_scans_n` +
     `&search_terms=${encodeURIComponent(query)}&fields=${FIELDS}`;
   const res = await fetch(url, { signal });
   if (res.status === 429) throw new FoodApiError('Catalogue rate limit', true);
@@ -274,6 +351,8 @@ export async function searchFoods(query: string, signal?: AbortSignal): Promise<
     }
   }
   if (offError && merged.length === 0) throw offError;
+
+  merged = rankFoods(query, merged);
 
   if (searchCache.size >= SEARCH_CACHE_MAX) {
     const first = searchCache.keys().next().value;
