@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatWeight, fromKg, roundToIncrement, toKg } from './units';
+import { cmToFtIn, formatWeight, fromKg, ftInToCm, roundToIncrement, toKg } from './units';
 
 describe('unit conversion', () => {
   it('kg is identity', () => {
@@ -22,5 +22,14 @@ describe('unit conversion', () => {
   it('formats without trailing noise', () => {
     expect(formatWeight(100, 'kg')).toBe('100');
     expect(formatWeight(102.5, 'kg')).toBe('102.5');
+  });
+
+  it('converts height cm <-> ft/in with inch wrapping', () => {
+    expect(cmToFtIn(180)).toEqual({ ft: 5, inch: 11 }); // 70.9 in
+    expect(cmToFtIn(183)).toEqual({ ft: 6, inch: 0 }); // 72.05 in
+    expect(ftInToCm(5, 11)).toBe(180);
+    expect(ftInToCm(6, 0)).toBe(183);
+    // Round-trips land on the same whole-inch height.
+    expect(cmToFtIn(ftInToCm(5, 7))).toEqual({ ft: 5, inch: 7 });
   });
 });

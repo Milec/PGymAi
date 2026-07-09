@@ -447,6 +447,17 @@ one-tap +250/+500/+1000 ml chips, undo, and a target modal that shows the
 formula breakdown; Trends gains an avg-water/day tile. Labelled a planning
 heuristic, not medical advice.
 
+### App-wide dashboard & water trend (v10)
+
+The Flight Deck is now an app-wide overview: a FUEL TODAY panel (today's
+calories + compact macro bars vs targets, hydration progress with a
+one-tap +250 ml, "Open Fuel" link) sits between the training tiles and
+charts. The Trends page gains a DAILY WATER area chart on its own day
+series (`dailyWater`/`fillWaterGaps` in `fuelStats`, unit-tested — water
+can exist on days with no food, so it doesn't share the food axis), and
+all target reference lines use `ifOverflow="extendDomain"` so a target
+above the data range stays visible.
+
 ### Quantity model (MyFitnessPal-style)
 
 A log amount is **number of servings × serving size**. The serving-size

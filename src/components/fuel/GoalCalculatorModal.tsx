@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { HeightField } from '@/components/HeightField';
 import { Chip, Field, HudButton, HudInput, HudSelect, Modal } from '@/components/hud';
 import type { Sex } from '@/data/strengthStandards';
 import {
@@ -37,7 +38,7 @@ export function GoalCalculatorModal({ open, onClose }: Props) {
   const [mode, setMode] = useState<'auto' | 'manual'>(n && !n.auto ? 'manual' : 'auto');
   // Body inputs (persisted back to the profile on apply).
   const [weight, setWeight] = useState(() => formatWeight(profile.bodyweightKg, unit));
-  const [height, setHeight] = useState(() => (profile.heightCm ? String(profile.heightCm) : ''));
+  const [heightCm, setHeightCm] = useState<number | undefined>(profile.heightCm);
   const [age, setAge] = useState(() => (profile.age ? String(profile.age) : ''));
   const [sex, setSex] = useState<Sex | 'unspecified'>(profile.sex);
   // Calculator inputs.
@@ -53,11 +54,10 @@ export function GoalCalculatorModal({ open, onClose }: Props) {
   const [mFat, setMFat] = useState(() => String(n?.targets.fatG ?? 80));
 
   const weightKg = toKg(parseFloat(weight) || 0, unit);
-  const heightCm = parseFloat(height) || 0;
   const ageY = parseInt(age) || 0;
-  const canCompute = weightKg > 0 && heightCm > 0 && ageY > 0;
+  const canCompute = weightKg > 0 && (heightCm ?? 0) > 0 && ageY > 0;
 
-  const bmr = canCompute ? bmrMifflinStJeor(sex, weightKg, heightCm, ageY) : 0;
+  const bmr = canCompute ? bmrMifflinStJeor(sex, weightKg, heightCm!, ageY) : 0;
   const maintenance = canCompute ? tdee(bmr, activity) : 0;
   const targetKcal = canCompute ? goalCalories(maintenance, goal, goal === 'maintain' ? 0 : rate) : 0;
   const autoTargets = canCompute ? macroTargets(targetKcal, weightKg, proteinPerKg, fatPercent) : null;
@@ -76,7 +76,7 @@ export function GoalCalculatorModal({ open, onClose }: Props) {
     await updateProfile({
       // Body stats belong to the profile so the whole app (and sync) sees them.
       ...(weightKg > 0 ? { bodyweightKg: weightKg } : {}),
-      ...(heightCm > 0 ? { heightCm } : {}),
+      ...((heightCm ?? 0) > 0 ? { heightCm } : {}),
       ...(ageY > 0 ? { age: ageY } : {}),
       sex,
       nutrition: {
@@ -109,9 +109,7 @@ export function GoalCalculatorModal({ open, onClose }: Props) {
             <Field label={`Weight (${unit})`}>
               <HudInput type="number" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} />
             </Field>
-            <Field label="Height (cm)">
-              <HudInput type="number" inputMode="decimal" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="175" />
-            </Field>
+            <HeightField heightCm={heightCm} unit={unit} onChange={setHeightCm} />
             <Field label="Age">
               <HudInput type="number" inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value)} placeholder="30" />
             </Field>

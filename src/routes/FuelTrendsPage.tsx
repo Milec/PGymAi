@@ -14,8 +14,17 @@ import {
 import { EmptyState, PageTitle, StatTile } from '@/components/common';
 import { Chip, HudPanel } from '@/components/hud';
 import { useAllFoodLogs, useAllWaterLogs } from '@/hooks/useLive';
-import { averageMacros, dailyTotals, fillGaps, filterPeriod } from '@/lib/fuelStats';
-import { dateKey, shiftDateKey, waterTargetMl } from '@/lib/nutrition';
+import {
+  averageMacros,
+  averageWaterMl,
+  dailyTotals,
+  dailyWater,
+  fillGaps,
+  fillWaterGaps,
+  filterPeriod,
+  filterWaterPeriod,
+} from '@/lib/fuelStats';
+import { waterTargetMl } from '@/lib/nutrition';
 import { useAppStore } from '@/store/useAppStore';
 
 const tooltipStyle: React.CSSProperties = {
@@ -46,23 +55,29 @@ export function FuelTrendsPage() {
   const days = useMemo(() => filterPeriod(allDays, period), [allDays, period]);
   const avg = useMemo(() => averageMacros(days), [days]);
 
-  // Avg water/day across days with water logged in the same window.
-  const avgWaterMl = useMemo(() => {
-    const since = period > 0 ? shiftDateKey(dateKey(), -(period - 1)) : '';
-    const byDay = new Map<string, number>();
-    for (const w of waterLogs) {
-      if (w.date >= since) byDay.set(w.date, (byDay.get(w.date) ?? 0) + w.ml);
-    }
-    if (byDay.size === 0) return null;
-    let sum = 0;
-    for (const v of byDay.values()) sum += v;
-    return sum / byDay.size;
-  }, [waterLogs, period]);
+  // Water gets its own day series (you can log water on days with no food).
+  const waterDays = useMemo(
+    () => filterWaterPeriod(dailyWater(waterLogs), period),
+    [waterLogs, period],
+  );
+  const avgWaterMl = useMemo(() => averageWaterMl(waterDays), [waterDays]);
+  const waterChartData = useMemo(
+    () =>
+      fillWaterGaps(waterDays, period).map((d) => ({
+        date: new Date(`${d.date}T12:00`).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+        }),
+        liters: d.logged ? Math.round(d.ml / 10) / 100 : null,
+      })),
+    [waterDays, period],
+  );
   const waterTarget =
     profile.hydration && !profile.hydration.auto
       ? profile.hydration.targetMl
       : waterTargetMl(profile.bodyweightKg, profile.nutrition?.activity ?? 'moderate');
 
+  // Unlogged days render as chart gaps (null), not misleading zero intake.
   const chartData = useMemo(
     () =>
       fillGaps(days, period).map((d) => ({
@@ -70,9 +85,8 @@ export function FuelTrendsPage() {
           month: 'short',
           day: 'numeric',
         }),
-        kcal: Math.round(d.macros.kcal),
-        protein: Math.round(d.macros.proteinG),
-        logged: d.logged,
+        kcal: d.logged ? Math.round(d.macros.kcal) : null,
+        protein: d.logged ? Math.round(d.macros.proteinG) : null,
       })),
     [days, period],
   );
@@ -172,6 +186,7 @@ export function FuelTrendsPage() {
                   y={targets.kcal}
                   stroke="var(--amber)"
                   strokeDasharray="5 4"
+                  ifOverflow="extendDomain"
                   label={{ value: 'target', fill: 'var(--amber)', fontSize: 9, position: 'insideTopRight' }}
                 />
               )}
@@ -181,7 +196,7 @@ export function FuelTrendsPage() {
         </div>
       </HudPanel>
 
-      <HudPanel className="p-4" label="DAILY PROTEIN">
+      <HudPanel className="mb-4 p-4" label="DAILY PROTEIN">
         <div className="h-56 w-full pt-3">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
@@ -211,6 +226,7 @@ export function FuelTrendsPage() {
                   y={targets.proteinG}
                   stroke="var(--cyan)"
                   strokeDasharray="5 4"
+                  ifOverflow="extendDomain"
                   label={{ value: 'target', fill: 'var(--cyan)', fontSize: 9, position: 'insideTopRight' }}
                 />
               )}
@@ -227,9 +243,56 @@ export function FuelTrendsPage() {
         </div>
       </HudPanel>
 
+      {waterChartData.length > 0 && (
+        <HudPanel className="p-4" label="DAILY WATER" bracketColor="var(--up)">
+          <div className="h-56 w-full pt-3">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={waterChartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--up)" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="var(--up)" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="2 4" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: 'var(--ink-faint)', fontSize: 10 }}
+                  tickLine={false}
+                  axisLine={{ stroke: 'var(--chart-axis)' }}
+                  interval="preserveStartEnd"
+                  minTickGap={24}
+                />
+                <YAxis tick={{ fill: 'var(--ink-faint)', fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  labelStyle={{ color: 'var(--up)' }}
+                  formatter={(v) => [`${Number(v)} L`, 'Water']}
+                />
+                <ReferenceLine
+                  y={waterTarget / 1000}
+                  stroke="var(--up)"
+                  strokeDasharray="5 4"
+                  ifOverflow="extendDomain"
+                  label={{ value: 'target', fill: 'var(--up)', fontSize: 9, position: 'insideTopRight' }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="liters"
+                  stroke="var(--up)"
+                  strokeWidth={2}
+                  fill="url(#waterGrad)"
+                  dot={{ r: 2, fill: 'var(--up)' }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </HudPanel>
+      )}
+
       <p className="mt-4 text-center text-[10px] text-[var(--ink-faint)]">
-        Averages count only days with at least one logged food. Dashed lines mark your current
-        targets.
+        Averages count only days with at least one logged food or water. Dashed lines mark your
+        current targets.
       </p>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AccountPanel } from '@/components/AccountPanel';
+import { HeightField } from '@/components/HeightField';
 import { PageTitle } from '@/components/common';
 import { Chip, Field, HudButton, HudInput, HudPanel } from '@/components/hud';
 import { db } from '@/db/db';
@@ -155,17 +156,12 @@ export function ProfilePage() {
               onBlur={commitBw}
             />
           </Field>
-          <Field label="Height (cm)" hint="Used by the Fuel target calculator.">
-            <HudInput
-              type="number"
-              inputMode="decimal"
-              value={profile.heightCm ?? ''}
-              onChange={(e) =>
-                void updateProfile({ heightCm: e.target.value ? parseFloat(e.target.value) : undefined })
-              }
-              placeholder="—"
-            />
-          </Field>
+          <HeightField
+            heightCm={profile.heightCm}
+            unit={unit}
+            onChange={(cm) => void updateProfile({ heightCm: cm })}
+            hint="Used by the Fuel target calculator."
+          />
         </div>
       </HudPanel>
 
