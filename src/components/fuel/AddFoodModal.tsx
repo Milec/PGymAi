@@ -33,7 +33,7 @@ export function AddFoodModal({ open, onClose, date, initialMeal }: Props) {
   const [selected, setSelected] = useState<PendingFood | null>(null);
   const [amountG, setAmountG] = useState(100);
   const [scanning, setScanning] = useState(false);
-  const [lookup, setLookup] = useState<'idle' | 'busy' | 'missing' | 'error'>('idle');
+  const [lookup, setLookup] = useState<'idle' | 'busy' | 'missing' | 'rate' | 'error'>('idle');
 
   const pick = (f: PendingFood) => {
     setSelected(f);
@@ -53,7 +53,9 @@ export function AddFoodModal({ open, onClose, date, initialMeal }: Props) {
           setLookup('missing');
         }
       })
-      .catch(() => setLookup('error'));
+      .catch((err: unknown) =>
+        setLookup(err instanceof FoodApiError && err.rateLimited ? 'rate' : 'error'),
+      );
   };
 
   const save = async () => {
@@ -143,7 +145,7 @@ function PickView({
   onPick: (f: PendingFood) => void;
   onScan: () => void;
   onManual: () => void;
-  lookup: 'idle' | 'busy' | 'missing' | 'error';
+  lookup: 'idle' | 'busy' | 'missing' | 'rate' | 'error';
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ApiFood[]>([]);
@@ -216,7 +218,12 @@ function PickView({
       )}
       {lookup === 'missing' && (
         <p className="mt-3 text-[12px] text-[var(--amber)]">
-          That barcode isn't in the catalogue yet — search by name or add it as a custom food.
+          That barcode isn't in either catalogue yet — search by name or add it as a custom food.
+        </p>
+      )}
+      {lookup === 'rate' && (
+        <p className="mt-3 text-[12px] text-[var(--amber)]">
+          The catalogue is busy — wait a few seconds and scan again.
         </p>
       )}
       {lookup === 'error' && (

@@ -291,6 +291,29 @@ grouped, expandable side menu shared by desktop and mobile:
   (Deck, Lift, Fuel, Log) + a **Menu** tab that opens a slide-in drawer with
   the full grouped nav. Less clutter than the previous 8-tab bar.
 
+### Food catalogue — two sources (updated v9)
+
+**USDA FoodData Central (Branded Foods)** was added as a second source after
+real-world scanning showed newer US products (e.g. Built Puff bars) missing
+from Open Food Facts. FDC is the US government label database — free,
+CORS-enabled (`ACAO: *`), per-100g nutrients via nutrient numbers
+(208 kcal / 203 protein / 205 carbs / 204 fat), `gtinUpc` barcode field,
+gram serving sizes. Layering:
+
+- **Barcodes**: OFF first, then FDC — each tried with both UPC-A/EAN-13
+  leading-zero forms (`barcodeVariants`), since both catalogues store US
+  codes inconsistently. "Not in catalogue" is only reported when at least
+  one source definitively answered; otherwise the error/rate-limit state
+  shows.
+- **Search**: OFF results first with FDC merged in (deduped by
+  leading-zero-normalised barcode; FDC queries require every term via `+`
+  prefixes for tight relevance). FDC search only runs with a real API key.
+- **Key gating**: `VITE_USDA_FDC_KEY` (free, instant, from
+  fdc.nal.usda.gov/api-key-signup; 1000 req/hr) enables search + barcode.
+  Without it, barcode lookups still try USDA's shared `DEMO_KEY` — a
+  best-effort, low-rate-limit last resort. Mirrors the Supabase env
+  pattern: unset → the app simply behaves as before.
+
 ### Food catalogue — Open Food Facts
 
 Search and barcode lookup use the **Open Food Facts** public API

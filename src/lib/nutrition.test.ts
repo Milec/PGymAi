@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapOffProduct } from './foodApi';
+import { barcodeVariants, mapFdcFood, mapOffProduct } from './foodApi';
 import {
   addMacros,
   bmrMifflinStJeor,
@@ -135,5 +135,57 @@ describe('Open Food Facts product mapping', () => {
       serving_quantity_unit: 'unit',
     });
     expect(food!.servingG).toBeUndefined();
+  });
+});
+
+describe('USDA FoodData Central mapping', () => {
+  it('maps per-100g nutrient numbers, title-cases, and keeps gram servings', () => {
+    const food = mapFdcFood({
+      description: 'COCONUT PUFF PROTEIN BARS, COCONUT PUFF',
+      brandOwner: 'BUILT BRANDS',
+      gtinUpc: '840229302093',
+      servingSize: 40,
+      servingSizeUnit: 'GRM',
+      foodNutrients: [
+        { nutrientNumber: '208', value: 350 },
+        { nutrientNumber: '203', value: 42.5 },
+        { nutrientNumber: '205', value: 32.5 },
+        { nutrientNumber: '204', value: 7.5 },
+      ],
+    });
+    expect(food).not.toBeNull();
+    expect(food!.name).toBe('Coconut Puff Protein Bars, Coconut Puff');
+    expect(food!.brand).toBe('Built Brands');
+    expect(food!.per100).toEqual({ kcal: 350, proteinG: 42.5, carbsG: 32.5, fatG: 7.5 });
+    expect(food!.servingG).toBe(40);
+    expect(food!.barcode).toBe('840229302093');
+  });
+
+  it('drops foods without energy or a barcode', () => {
+    expect(
+      mapFdcFood({ description: 'A', gtinUpc: '1', foodNutrients: [{ nutrientNumber: '203', value: 5 }] }),
+    ).toBeNull();
+    expect(
+      mapFdcFood({ description: 'B', foodNutrients: [{ nutrientNumber: '208', value: 100 }] }),
+    ).toBeNull();
+  });
+
+  it('ignores non-gram serving units', () => {
+    const food = mapFdcFood({
+      description: 'C',
+      gtinUpc: '2',
+      servingSize: 1,
+      servingSizeUnit: 'BAR',
+      foodNutrients: [{ nutrientNumber: '208', value: 100 }],
+    });
+    expect(food!.servingG).toBeUndefined();
+  });
+});
+
+describe('barcode variants', () => {
+  it('bridges UPC-A and EAN-13 leading-zero forms', () => {
+    expect(barcodeVariants('0840229302093')).toEqual(['0840229302093', '840229302093']);
+    expect(barcodeVariants('840229302093')).toEqual(['840229302093', '0840229302093']);
+    expect(barcodeVariants('12345678')).toEqual(['12345678']); // EAN-8 untouched
   });
 });

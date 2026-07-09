@@ -31,7 +31,7 @@ space-navy field, luminous scanlines, and instrument-panel numeric readouts.
 | **Strength Standards** | The differentiator — see below. |
 | **Programs** | Import multi-week programs (file upload or paste-JSON, Zod-validated), follow week/day with adaptive load suggestions, export any program back to JSON. Ships 3 example programs. |
 | **Activity Log** | Browse every finished session (date, duration, volume, sets, lifts) and expand any one for full per-exercise set detail. A month **calendar** shows training days (cyan) *and* days with meals logged (violet dot); tap a day to see that day's sessions **and** its meal breakdown, with a one-tap jump into Fuel. |
-| **Fuel (Nutrition)** | MyFitnessPal-style daily food journal divided into meals, with calorie + protein/carb/fat bars against your targets. **Auto-calculated goals** (Mifflin-St Jeor from weight/height/age/sex, training frequency, and cut/maintain/bulk rate) or manual targets. Log food by **searching the Open Food Facts catalogue** (millions of products), **scanning a barcode** (native BarcodeDetector with a lazy-loaded ZXing fallback), re-logging from **My Foods**, or creating custom foods. Amounts are **servings × serving size** (labelled serving, 100 g, exact grams, or oz), MyFitnessPal-style. Journal + My Foods back up via Cloud Sync. |
+| **Fuel (Nutrition)** | MyFitnessPal-style daily food journal divided into meals, with calorie + protein/carb/fat bars against your targets. **Auto-calculated goals** (Mifflin-St Jeor from weight/height/age/sex, training frequency, and cut/maintain/bulk rate) or manual targets. Log food by **searching two live catalogues** — Open Food Facts plus USDA FoodData Central's US branded-foods database — **scanning a barcode** (native BarcodeDetector with a lazy-loaded ZXing fallback; both catalogues tried, with UPC/EAN leading-zero variants), re-logging from **My Foods**, or creating custom foods. Amounts are **servings × serving size** (labelled serving, 100 g, exact grams, or oz), MyFitnessPal-style. Journal + My Foods back up via Cloud Sync. |
 | **Nutrition Trends** | Derived metrics over a **settable period** (1W/2W/1M/3M/All): average kcal / protein / carbs / fat per logged day vs your targets, plus daily calorie and protein charts with target reference lines. Averages skip unlogged days. |
 | **Profile** | Sex, bodyweight, height, age, kg/lb units (toggles everywhere), default rest time, data export/erase, and a "Load Sample Data" button. **Theme picker**: Starship HUD (default), Dark Night, Light, and Bubblegum. |
 
@@ -159,6 +159,21 @@ running the schema, the Cloud Sync panel tells you the tables are missing.
 **Limitations**: last-write-wins resolves conflicts at the record (whole
 workout/program) level, not field-by-field; the seeded exercise library is
 identical for everyone and isn't synced (only your custom exercises are).
+
+## Food Catalogue Sources (optional USDA key)
+
+Fuel searches **Open Food Facts** out of the box. For much better coverage of
+**US branded products** (protein bars, new releases), add a free **USDA
+FoodData Central** key:
+
+1. Request a key at <https://fdc.nal.usda.gov/api-key-signup> (instant, free,
+   1000 requests/hour).
+2. Set it as `VITE_USDA_FDC_KEY` (local `.env`, or a repo secret for the Pages
+   deploy) and rebuild.
+
+With a key, USDA joins both **search** (results merged and deduped) and
+**barcode lookup**. Without one, barcode scans still fall back to USDA's
+shared `DEMO_KEY` on a best-effort basis; search stays OFF-only.
 
 ## Deployment (GitHub Pages)
 

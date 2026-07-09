@@ -183,8 +183,8 @@ export function FuelPage() {
       </div>
 
       <p className="mt-5 text-center text-[10px] text-[var(--ink-faint)]">
-        Catalogue data from Open Food Facts (openfoodfacts.org) · logged foods are stored on this
-        device and back up with Cloud Sync
+        Catalogue data from Open Food Facts (openfoodfacts.org) and USDA FoodData Central · logged
+        foods are stored on this device and back up with Cloud Sync
       </p>
 
       <GoalCalculatorModal open={goalOpen} onClose={() => setGoalOpen(false)} />
