@@ -276,6 +276,51 @@ test('expandable side menu groups collapse and expand', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /^fuel$/i })).toBeVisible();
 });
 
+test('barcode scanner locks onto a detected code and completes the flow', async ({ page }) => {
+  // Stub the native detector: reports one EAN with a bounding box, as Chrome
+  // on Android would. The fake camera flag provides the video stream.
+  await page.addInitScript(() => {
+    class FakeDetector {
+      static getSupportedFormats() {
+        return Promise.resolve(['ean_13', 'upc_a']);
+      }
+      detect() {
+        return Promise.resolve([
+          { rawValue: '737628064502', boundingBox: new DOMRect(420, 260, 380, 150) },
+        ]);
+      }
+    }
+    (window as unknown as { BarcodeDetector: unknown }).BarcodeDetector = FakeDetector;
+  });
+  await freshApp(page);
+  // Mock the catalogue so the post-lock lookup resolves offline.
+  await page.route(/world\.openfoodfacts\.org\/api\/v2\/product/, (r) =>
+    r.fulfill({
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        product: {
+          code: '737628064502',
+          product_name: 'Rice Noodles',
+          nutriments: { 'energy-kcal_100g': 385, proteins_100g: 7 },
+          serving_quantity: 52,
+          serving_quantity_unit: 'g',
+        },
+      }),
+    }),
+  );
+
+  await page.goto('/#/fuel');
+  await page.getByRole('button', { name: /add food to snacks/i }).click();
+  await page.getByRole('button', { name: 'Scan barcode' }).click();
+  // Reactive feedback: the lock-on state shows before the lookup fires…
+  await expect(page.getByText(/LOCKED|READING/)).toBeVisible();
+  // …then the detected product lands in the quantity step with its serving.
+  await expect(page.getByText('Rice Noodles')).toBeVisible();
+  await expect(page.getByLabel('Serving size')).toHaveValue('serving');
+  await expect(page.getByText('= 52 g')).toBeVisible();
+});
+
 test('planner: build, save, and launch a planned workout', async ({ page }) => {
   await freshApp(page);
   await page.goto('/#/workout');

@@ -393,6 +393,14 @@ link (`/fuel?date=YYYY-MM-DD`, which the Fuel page reads on mount).
   mount-stable (parent re-renders can't restart the camera), and failures
   (permission denied, decoder chunk failed to load) surface as explicit
   messages with manual entry always available.
+- **Reactive lock-on (v9)**: while searching, a sweep line animates in the
+  reticle; the moment a code is sighted a box snaps to the barcode's real
+  bounding box (frame→element mapping accounts for object-cover cropping),
+  tracks it live, and flashes green ("LOCKED") before the lookup fires.
+  The native path requires two consecutive sightings of the same value —
+  feedback and misread-guard in one. ZXing only reports on successful
+  decode, so its box derives from the result points at lock time. Tested
+  headlessly via a stubbed `BarcodeDetector` + Chromium's fake camera.
 - **Catalogue search**: the public search endpoint rate-limits at ~10
   req/min and returns HTML error pages under load. The client now caches
   per-query results for the session, retries once, distinguishes
