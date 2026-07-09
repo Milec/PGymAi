@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { FoodLogEntry } from '@/db/types';
-import { averageMacros, dailyTotals, fillGaps, filterPeriod } from './fuelStats';
+import type { FoodLogEntry, WaterLog } from '@/db/types';
+import {
+  averageMacros,
+  averageWaterMl,
+  dailyTotals,
+  dailyWater,
+  fillGaps,
+  fillWaterGaps,
+  filterPeriod,
+  filterWaterPeriod,
+} from './fuelStats';
 
 function entry(date: string, kcalPer100: number, proteinPer100: number, amountG = 100): FoodLogEntry {
   return {
@@ -61,6 +70,30 @@ describe('averageMacros', () => {
 
   it('returns null with no logged days', () => {
     expect(averageMacros([])).toBeNull();
+  });
+});
+
+describe('water series', () => {
+  const log = (date: string, ml: number): WaterLog => ({ id: `w-${date}-${ml}`, date, ml, loggedAt: 0 });
+
+  it('sums per day, filters the window, and averages logged days only', () => {
+    const days = dailyWater([log('2026-07-01', 500), log('2026-07-01', 250), log('2026-07-03', 1000)]);
+    expect(days.map((d) => [d.date, d.ml])).toEqual([
+      ['2026-07-01', 750],
+      ['2026-07-03', 1000],
+    ]);
+    expect(filterWaterPeriod(days, 1, '2026-07-03')).toHaveLength(1);
+    expect(averageWaterMl(days)).toBeCloseTo(875);
+    expect(averageWaterMl([])).toBeNull();
+  });
+
+  it('fills gap days with zero ml for a continuous chart axis', () => {
+    const filled = fillWaterGaps(dailyWater([log('2026-07-01', 500)]), 3, '2026-07-03');
+    expect(filled.map((d) => [d.date, d.ml, d.logged])).toEqual([
+      ['2026-07-01', 500, true],
+      ['2026-07-02', 0, false],
+      ['2026-07-03', 0, false],
+    ]);
   });
 });
 

@@ -5,6 +5,7 @@ import { AddFoodModal } from '@/components/fuel/AddFoodModal';
 import { EditEntryModal } from '@/components/fuel/EditEntryModal';
 import { GoalCalculatorModal } from '@/components/fuel/GoalCalculatorModal';
 import { HydrationPanel } from '@/components/fuel/HydrationPanel';
+import { MacroBar } from '@/components/fuel/MacroBar';
 import { Chip, HudButton, HudPanel, Readout, Tag } from '@/components/hud';
 import { IconChevronL, IconChevronR, IconPlus, IconTarget } from '@/components/icons';
 import type { FoodLogEntry } from '@/db/types';
@@ -225,48 +226,5 @@ function EntryRow({ entry, onClick }: { entry: FoodLogEntry; onClick: () => void
         </span>
       </span>
     </button>
-  );
-}
-
-/** Progress toward one macro target; overshoot turns the bar red. */
-function MacroBar({
-  label,
-  eaten,
-  target,
-  color,
-  unit,
-}: {
-  label: string;
-  eaten: number;
-  target: number;
-  color: string;
-  unit: string;
-}) {
-  const pct = target > 0 ? Math.min(100, (eaten / target) * 100) : 0;
-  const over = eaten > target && target > 0;
-  const barColor = over ? 'var(--down)' : color;
-  return (
-    <div className="mt-3">
-      <div className="mb-1 flex items-baseline justify-between">
-        <span className="font-head text-[9px] tracking-[0.2em] text-[var(--ink-faint)]">{label}</span>
-        <span className="mono text-[10px] text-[var(--ink-dim)]">
-          {Math.round(eaten)} / {target} {unit}
-        </span>
-      </div>
-      <div
-        className="h-[6px] overflow-hidden rounded-full"
-        style={{ background: 'rgba(120,200,255,0.08)', border: '1px solid var(--line)' }}
-        role="progressbar"
-        aria-label={label}
-        aria-valuenow={Math.round(eaten)}
-        aria-valuemin={0}
-        aria-valuemax={target}
-      >
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, background: barColor, boxShadow: `0 0 8px ${barColor}` }}
-        />
-      </div>
-    </div>
   );
 }

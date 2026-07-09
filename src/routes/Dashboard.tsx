@@ -12,6 +12,7 @@ import {
   XAxis,
 } from 'recharts';
 import { PageTitle, StatTile, EmptyState } from '@/components/common';
+import { FuelTodayPanel } from '@/components/fuel/FuelTodayPanel';
 import { Chip, HudButton, HudPanel } from '@/components/hud';
 import { IconFire, IconLift, IconChart } from '@/components/icons';
 import { MUSCLE_LABEL } from '@/data/muscles';
@@ -89,6 +90,10 @@ export function Dashboard() {
         <StatTile label="Session Streak" value={streak} unit="days" color="var(--amber)" icon={<IconFire size={16} />} />
         <StatTile label="Sessions / Week" value={sessionsThisWeek} color="var(--violet)" />
         <StatTile label="Total Sessions" value={workouts.length} color="var(--up)" />
+      </div>
+
+      <div className="mt-4">
+        <FuelTodayPanel />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">

@@ -266,7 +266,7 @@ test('fuel: calibrated targets + custom food logging end to end', async ({ page 
 test('expandable side menu groups collapse and expand', async ({ page }) => {
   await freshApp(page);
   // Desktop rail: NUTRITION group is expanded by default and holds Fuel.
-  const fuelLink = page.getByRole('link', { name: 'Fuel' });
+  const fuelLink = page.getByRole('link', { name: 'Fuel', exact: true });
   await expect(fuelLink).toBeVisible();
   await page.getByRole('button', { name: 'NUTRITION' }).click();
   await expect(fuelLink).toBeHidden();
@@ -392,9 +392,32 @@ test('nutrition trends shows period-filtered averages and charts', async ({ page
   await expect(page.getByText('DAILY CALORIES')).toBeVisible();
   await expect(page.getByText('DAILY PROTEIN')).toBeVisible();
 
+  // Hydration trend: avg tile + daily water chart render from demo data.
+  await expect(page.getByText('AVG WATER / DAY')).toBeVisible();
+  await expect(page.getByText('DAILY WATER')).toBeVisible();
+
   // Period chips re-filter; a 1W window still has demo data.
   await page.getByRole('button', { name: '1W', exact: true }).click();
   await expect(page.getByText(/logged day/)).toBeVisible();
+});
+
+test('dashboard shows an app-wide fuel summary with quick water add', async ({ page }) => {
+  await freshApp(page);
+  await page.evaluate(async () => {
+    const m = await import('/src/dev/demoData.ts');
+    await m.loadDemoData();
+  });
+  await page.reload(); // pick up the demo profile targets in the store
+  await expect(page.getByText('FUEL TODAY')).toBeVisible();
+  // Calories vs target and the water readout render from today's demo meals.
+  await expect(page.getByText(/\/ \d{4} kcal/).first()).toBeVisible();
+  await expect(page.getByRole('progressbar', { name: 'WATER' })).toBeVisible();
+  // Quick +250ml works straight from the dashboard.
+  const before = await page.getByRole('progressbar', { name: 'WATER' }).getAttribute('aria-valuenow');
+  await page.getByRole('button', { name: '+250ml' }).click();
+  await expect
+    .poll(async () => page.getByRole('progressbar', { name: 'WATER' }).getAttribute('aria-valuenow'))
+    .toBe(String(Number(before) + 250));
 });
 
 test('adding an example program then following it works', async ({ page }) => {
