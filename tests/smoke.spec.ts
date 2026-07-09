@@ -276,6 +276,34 @@ test('expandable side menu groups collapse and expand', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /^fuel$/i })).toBeVisible();
 });
 
+test('hydration: quick-add, undo, and manual target', async ({ page }) => {
+  await freshApp(page);
+  await page.goto('/#/fuel');
+
+  // Auto target shows out of the box (default 80 kg, moderate → 3.15 L).
+  await expect(page.getByText('/ 3.15 L')).toBeVisible();
+
+  // Two quick-adds accumulate; undo removes the last one.
+  await page.getByRole('button', { name: '+500ml' }).click();
+  await page.getByRole('button', { name: '+250ml' }).click();
+  await expect(page.getByText('0.75', { exact: false }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Undo last water' }).click();
+  await expect(page.getByText('0.5', { exact: false }).first()).toBeVisible();
+
+  // Manual target override persists via the profile.
+  await page.getByRole('button', { name: /adjust target/i }).click();
+  await page.getByRole('button', { name: /set manually/i }).click();
+  await page.getByLabel(/daily target/i).fill('2000');
+  await page.getByRole('button', { name: /apply target/i }).click();
+  await expect(page.getByText('/ 2.0 L')).toBeVisible();
+  await expect(page.getByText('manual target')).toBeVisible();
+
+  // Intake survives a reload (persisted in Dexie).
+  await page.waitForTimeout(600);
+  await page.reload();
+  await expect(page.getByText('0.5', { exact: false }).first()).toBeVisible();
+});
+
 test('barcode scanner locks onto a detected code and completes the flow', async ({ page }) => {
   // Stub the native detector: reports one EAN with a bounding box, as Chrome
   // on Android would. The fake camera flag provides the video stream.

@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo } from 'react';
 import { db } from '@/db/db';
-import type { Exercise, FoodLogEntry, SavedFood, Workout, WorkoutPlan } from '@/db/types';
+import type { Exercise, FoodLogEntry, SavedFood, WaterLog, Workout, WorkoutPlan } from '@/db/types';
 
 export function useExercises(): Exercise[] {
   return useLiveQuery(() => db.exercises.toArray(), [], []) ?? [];
@@ -50,6 +50,18 @@ export function useDayFoodLog(date: string): FoodLogEntry[] {
   return (
     useLiveQuery(() => db.foodLogs.where('date').equals(date).sortBy('loggedAt'), [date], []) ?? []
   );
+}
+
+/** Water intake events for one YYYY-MM-DD day, in logging order. */
+export function useDayWater(date: string): WaterLog[] {
+  return (
+    useLiveQuery(() => db.waterLogs.where('date').equals(date).sortBy('loggedAt'), [date], []) ?? []
+  );
+}
+
+/** Every water intake event (for trends). */
+export function useAllWaterLogs(): WaterLog[] {
+  return useLiveQuery(() => db.waterLogs.toArray(), [], []) ?? [];
 }
 
 /** Reusable foods (custom + recently logged), most recently used first. */

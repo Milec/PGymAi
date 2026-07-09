@@ -1,5 +1,5 @@
 import { db } from '@/db/db';
-import type { FoodLogEntry, LoggedSet, Workout, WorkoutEntry } from '@/db/types';
+import type { FoodLogEntry, LoggedSet, WaterLog, Workout, WorkoutEntry } from '@/db/types';
 import { uid } from '@/lib/id';
 import {
   bmrMifflinStJeor,
@@ -11,7 +11,14 @@ import {
   type MealId,
 } from '@/lib/nutrition';
 import { roundToIncrement } from '@/lib/units';
-import { persistFoodLog, persistWorkout, removeFoodLog, removeWorkout } from '@/sync/local';
+import {
+  persistFoodLog,
+  persistWaterLog,
+  persistWorkout,
+  removeFoodLog,
+  removeWaterLog,
+  removeWorkout,
+} from '@/sync/local';
 
 /**
  * Generate a realistic ~7-week training history so charts, PRs, streaks and
@@ -146,6 +153,25 @@ async function seedDemoFoodDay(): Promise<void> {
     });
   }
   for (const e of entries) await persistFoodLog(e);
+
+  // Hydration alongside the meals: 4-7 pours per logged day, ~2-3 L.
+  const oldWater = await db.waterLogs.filter((w) => w.id.startsWith('demowater-')).toArray();
+  for (const w of oldWater) await removeWaterLog(w.id);
+  const water: WaterLog[] = [];
+  for (let daysAgo = 20; daysAgo >= 0; daysAgo--) {
+    if (daysAgo !== 0 && daysAgo % 6 === 3) continue;
+    const date = dateKey(new Date(now - daysAgo * 86400000));
+    const pours = 4 + ((daysAgo * 7) % 4); // deterministic 4-7
+    for (let p = 0; p < pours; p++) {
+      water.push({
+        id: `demowater-${runId}-${daysAgo}-${p}`,
+        date,
+        ml: p % 3 === 0 ? 250 : 500,
+        loggedAt: now - daysAgo * 86400000 - (pours - p) * 5400000,
+      });
+    }
+  }
+  for (const w of water) await persistWaterLog(w);
 }
 
 export async function hasDemoData(): Promise<boolean> {

@@ -86,6 +86,12 @@ export const IconCalendar = ({ size = 20, className }: P) => (
     <path d="M3 9h18M8 2v4M16 2v4" />
   </svg>
 );
+export const IconDrop = ({ size = 20, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z" />
+    <path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5" />
+  </svg>
+);
 export const IconTrend = ({ size = 20, className }: P) => (
   <svg {...base(size)} className={className}>
     <path d="M4 20v-5M9 20v-9M14 20v-6M19 20V7" />

@@ -1,6 +1,6 @@
 import type { Equipment, MovementPattern, MuscleGroup } from '@/data/muscles';
 import type { Sex } from '@/data/strengthStandards';
-import type { MacroSet, MealId, NutritionSettings } from '@/lib/nutrition';
+import type { HydrationSettings, MacroSet, MealId, NutritionSettings } from '@/lib/nutrition';
 import type { ThemeName } from '@/lib/theme';
 import type { Unit } from '@/lib/units';
 
@@ -71,6 +71,8 @@ export interface Profile {
   heightCm?: number;
   /** Macro targets + calculator inputs for the Fuel page. */
   nutrition?: NutritionSettings;
+  /** Daily water target for the hydration tracker. */
+  hydration?: HydrationSettings;
   /** Last-modified epoch ms — used for cloud sync (last-write-wins). */
   updatedAt?: number;
 }
@@ -145,6 +147,16 @@ export interface WorkoutPlan {
   updatedAt?: number;
 }
 
+/** One water intake event in the hydration tracker. */
+export interface WaterLog {
+  id: string;
+  /** Local-time journal day, YYYY-MM-DD. */
+  date: string;
+  ml: number;
+  loggedAt: number;
+  updatedAt?: number;
+}
+
 /** Sync entity kinds that participate in cloud sync. */
 export type SyncEntity =
   | 'workouts'
@@ -152,7 +164,8 @@ export type SyncEntity =
   | 'custom_exercises'
   | 'food_logs'
   | 'foods'
-  | 'plans';
+  | 'plans'
+  | 'water_logs';
 
 /** A tombstone recording a local deletion so it can propagate to other devices. */
 export interface Deletion {

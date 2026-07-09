@@ -7,6 +7,7 @@ import type {
   ProgramProgress,
   SavedFood,
   StoredProgram,
+  WaterLog,
   Workout,
   WorkoutPlan,
 } from './types';
@@ -21,6 +22,7 @@ export class StrideDB extends Dexie {
   foodLogs!: Table<FoodLogEntry, string>;
   foods!: Table<SavedFood, string>;
   plans!: Table<WorkoutPlan, string>;
+  waterLogs!: Table<WaterLog, string>;
 
   constructor() {
     super('stride-db');
@@ -62,6 +64,19 @@ export class StrideDB extends Dexie {
       foodLogs: 'id, date, meal, loggedAt',
       foods: 'id, name, barcode, custom, lastUsedAt',
       plans: 'id, name, createdAt, lastUsedAt',
+    });
+    // v5 adds the hydration tracker: one row per water intake event.
+    this.version(5).stores({
+      exercises: 'id, name, equipment, pattern, category, bigLift, custom, updatedAt',
+      workouts: 'id, startedAt, finishedAt, programId, updatedAt',
+      profile: 'id',
+      programs: 'id, importedAt, active, updatedAt',
+      programProgress: 'programId',
+      deletions: 'key, entity, deletedAt',
+      foodLogs: 'id, date, meal, loggedAt',
+      foods: 'id, name, barcode, custom, lastUsedAt',
+      plans: 'id, name, createdAt, lastUsedAt',
+      waterLogs: 'id, date, loggedAt',
     });
   }
 }

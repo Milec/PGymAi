@@ -10,6 +10,7 @@ import {
   macrosForAmount,
   shiftDateKey,
   tdee,
+  waterTargetMl,
 } from './nutrition';
 
 describe('Mifflin-St Jeor BMR', () => {
@@ -58,6 +59,14 @@ describe('macro targets', () => {
 
   it('clamps carbs at zero for very low calorie targets', () => {
     expect(macroTargets(1200, 120, 2.2, 35).carbsG).toBe(0);
+  });
+});
+
+describe('water target', () => {
+  it('applies the ml/kg heuristic plus the activity bump, rounded to 50 ml', () => {
+    expect(waterTargetMl(80, 'sedentary')).toBe(2650); // 2640 → 2650
+    expect(waterTargetMl(80, 'moderate')).toBe(3150); // +500
+    expect(waterTargetMl(60, 'athlete')).toBe(3000); // 1980 + 1000 = 2980 → 3000
   });
 });
 
