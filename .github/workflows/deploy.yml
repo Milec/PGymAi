@@ -42,6 +42,10 @@ jobs:
           # the deployed site; if unset, the app builds and runs local-first.
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Optional USDA FoodData Central key (free at https://fdc.nal.usda.gov/api-key-signup)
+          # — unlocks the US branded-foods catalogue as a second food source.
+          # Without it, barcode lookups still fall back to USDA's shared DEMO_KEY.
+          VITE_USDA_FDC_KEY: ${{ secrets.VITE_USDA_FDC_KEY }}
         run: pnpm build
 
       - name: Upload Pages artifact
