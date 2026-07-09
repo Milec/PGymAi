@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { barcodeVariants, mapFdcFood, mapOffProduct } from './foodApi';
+import { barcodeVariants, mapFdcFood, mapOffProduct, rankFoods, type ApiFood } from './foodApi';
 import {
   addMacros,
   bmrMifflinStJeor,
@@ -170,6 +170,22 @@ describe('USDA FoodData Central mapping', () => {
     expect(food!.barcode).toBe('840229302093');
   });
 
+  it('keeps generic SR Legacy foods under a stable pseudo-id', () => {
+    const f = mapFdcFood({
+      fdcId: 173110,
+      dataType: 'SR Legacy',
+      description: 'Beef, ground, 93% lean meat / 7% fat, raw',
+      foodNutrients: [
+        { nutrientNumber: '208', value: 152 },
+        { nutrientNumber: '203', value: 20.85 },
+      ],
+    });
+    expect(f).not.toBeNull();
+    expect(f!.barcode).toBe('fdc-173110');
+    expect(f!.brand).toBe('USDA');
+    expect(f!.name).toBe('Beef, Ground, 93% Lean Meat / 7% Fat, Raw');
+  });
+
   it('drops foods without energy or a barcode', () => {
     expect(
       mapFdcFood({ description: 'A', gtinUpc: '1', foodNutrients: [{ nutrientNumber: '203', value: 5 }] }),
@@ -188,6 +204,56 @@ describe('USDA FoodData Central mapping', () => {
       foodNutrients: [{ nutrientNumber: '208', value: 100 }],
     });
     expect(food!.servingG).toBeUndefined();
+  });
+});
+
+describe('search relevance ranking', () => {
+  const food = (name: string, brand?: string, popularity?: number): ApiFood => ({
+    barcode: name,
+    name,
+    brand,
+    per100: { kcal: 100, proteinG: 0, carbsG: 0, fatG: 0 },
+    popularity,
+  });
+
+  it('puts full-token matches first and drops unrelated noise', () => {
+    // Real-shaped junk the legacy OFF search returns for "lean ground beef".
+    const results = rankFoods('lean ground beef', [
+      food('Lean Cuisine Chicken Pizza', 'Lean Cuisine'),
+      food('Teriyaki Beef Jerky', 'Jack Links'),
+      food('Sweet Corn', 'Green Giant'),
+      food('Beef, Ground, 93% Lean Meat / 7% Fat, Raw', 'USDA'),
+      food('Extra Lean Ground Beef', "Trader Joe's", 3),
+    ]);
+    expect(results.map((r) => r.name)).toEqual([
+      'Extra Lean Ground Beef', // shorter name + popularity beats the long USDA label
+      'Beef, Ground, 93% Lean Meat / 7% Fat, Raw',
+      // pizza (1/3 tokens), jerky (1/3), corn (0/3) are gone
+    ]);
+  });
+
+  it('counts brand hits so branded staples rank above near-misses', () => {
+    const results = rankFoods('fage yogurt', [
+      food('Greek Style Natural Yogurt', 'Milbona'),
+      food('Total 5% Fat Greek Yogurt', 'Fage'),
+    ]);
+    // Fage matches both tokens (name + brand); Milbona is an all-but-one
+    // fallback and trails it.
+    expect(results.map((r) => r.brand)).toEqual(['Fage', 'Milbona']);
+  });
+
+  it('breaks ties by popularity', () => {
+    const results = rankFoods('ground beef', [
+      food('Obscure Ground Beef', undefined, 0),
+      food('Popular Ground Beef', undefined, 40),
+    ]);
+    expect(results[0].name).toBe('Popular Ground Beef');
+  });
+
+  it('matches tokens at word starts only', () => {
+    // "bee" should not match inside "Frisbee Snacks".
+    const results = rankFoods('bee', [food('Frisbee Snacks'), food('Bee Pollen Granules')]);
+    expect(results.map((r) => r.name)).toEqual(['Bee Pollen Granules']);
   });
 });
 
