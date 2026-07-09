@@ -7,6 +7,7 @@ import type {
   StoredProgram,
   SyncEntity,
   Workout,
+  WorkoutPlan,
 } from '@/db/types';
 import {
   stamp,
@@ -96,6 +97,18 @@ export async function persistFood(f: SavedFood): Promise<SavedFood> {
 export async function removeFood(id: string): Promise<void> {
   await db.foods.delete(id);
   void syncDeleteRecord('foods', id);
+}
+
+// --- Workout plans ---
+export async function persistPlan(p: WorkoutPlan): Promise<WorkoutPlan> {
+  const s = stamp(p);
+  await db.plans.put(s);
+  schedulePush('plans', s);
+  return s;
+}
+export async function removePlan(id: string): Promise<void> {
+  await db.plans.delete(id);
+  void syncDeleteRecord('plans', id);
 }
 
 // --- Profile ---

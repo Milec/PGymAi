@@ -276,6 +276,54 @@ test('expandable side menu groups collapse and expand', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /^fuel$/i })).toBeVisible();
 });
 
+test('planner: build, save, and launch a planned workout', async ({ page }) => {
+  await freshApp(page);
+  await page.goto('/#/workout');
+
+  // Build a plan: Back Squat 3×5 @ 100.
+  await page.getByRole('button', { name: /new plan/i }).click();
+  await page.getByPlaceholder(/push day a/i).fill('Leg Day');
+  await page.getByRole('button', { name: /add exercise/i }).click();
+  await page.getByPlaceholder('Search…').fill('Back Squat');
+  await page.getByRole('button', { name: /^Back Squat/ }).first().click();
+  await page.getByLabel(/target reps/i).fill('5');
+  await page.getByLabel(/weight/i).fill('100');
+  await page.getByRole('button', { name: /save plan/i }).click();
+
+  // The saved plan is listed and survives a reload (persisted in Dexie).
+  await expect(page.getByText('Leg Day')).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('Leg Day')).toBeVisible();
+  await expect(page.getByText(/1 exercise · 3 sets/)).toBeVisible();
+
+  // Launch it: session opens with the exercise, 3 pre-filled sets at 100.
+  await page.getByRole('button', { name: /^Start$/ }).click();
+  await expect(page.getByRole('heading', { name: 'Leg Day' })).toBeVisible();
+  await expect(page.getByText('Back Squat', { exact: true })).toBeVisible();
+  const weights = page.locator('input[inputmode="decimal"]');
+  await expect(weights.first()).toHaveValue('100');
+  // Target reps appear as the rep placeholder.
+  await expect(page.locator('input[inputmode="numeric"]').first()).toHaveAttribute('placeholder', '5');
+});
+
+test('nutrition trends shows period-filtered averages and charts', async ({ page }) => {
+  await freshApp(page);
+  await page.evaluate(async () => {
+    const m = await import('/src/dev/demoData.ts');
+    await m.loadDemoData();
+  });
+  await page.goto('/#/fuel-trends');
+  await expect(page.getByRole('heading', { name: /nutrition trends/i })).toBeVisible();
+  await expect(page.getByText('AVG KCAL / DAY')).toBeVisible();
+  await expect(page.getByText('AVG PROTEIN / DAY')).toBeVisible();
+  await expect(page.getByText('DAILY CALORIES')).toBeVisible();
+  await expect(page.getByText('DAILY PROTEIN')).toBeVisible();
+
+  // Period chips re-filter; a 1W window still has demo data.
+  await page.getByRole('button', { name: '1W', exact: true }).click();
+  await expect(page.getByText(/logged day/)).toBeVisible();
+});
+
 test('adding an example program then following it works', async ({ page }) => {
   await freshApp(page);
   await page.goto('/#/programs');

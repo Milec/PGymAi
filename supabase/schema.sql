@@ -58,10 +58,19 @@ create table if not exists public.foods (
   primary key (user_id, id)
 );
 
+-- Workout planner blueprints.
+create table if not exists public.plans (
+  id         text not null,
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  data       jsonb not null,
+  updated_at bigint not null,
+  primary key (user_id, id)
+);
+
 -- Tombstones for deleted records (so deletions sync across devices).
 create table if not exists public.deletions (
   user_id    uuid not null references auth.users (id) on delete cascade,
-  entity     text not null check (entity in ('workouts', 'programs', 'custom_exercises', 'food_logs', 'foods')),
+  entity     text not null check (entity in ('workouts', 'programs', 'custom_exercises', 'food_logs', 'foods', 'plans')),
   entity_id  text not null,
   deleted_at bigint not null,
   primary key (user_id, entity, entity_id)
@@ -71,13 +80,14 @@ create table if not exists public.deletions (
 -- entity check to cover the nutrition entities. (No-op on fresh installs.)
 alter table public.deletions drop constraint if exists deletions_entity_check;
 alter table public.deletions add constraint deletions_entity_check
-  check (entity in ('workouts', 'programs', 'custom_exercises', 'food_logs', 'foods'));
+  check (entity in ('workouts', 'programs', 'custom_exercises', 'food_logs', 'foods', 'plans'));
 
 create index if not exists workouts_updated_idx on public.workouts (user_id, updated_at);
 create index if not exists programs_updated_idx on public.programs (user_id, updated_at);
 create index if not exists custom_exercises_updated_idx on public.custom_exercises (user_id, updated_at);
 create index if not exists food_logs_updated_idx on public.food_logs (user_id, updated_at);
 create index if not exists foods_updated_idx on public.foods (user_id, updated_at);
+create index if not exists plans_updated_idx on public.plans (user_id, updated_at);
 create index if not exists deletions_updated_idx on public.deletions (user_id, deleted_at);
 
 -- ---------------------------------------------------------------------------
@@ -90,12 +100,13 @@ alter table public.programs         enable row level security;
 alter table public.custom_exercises enable row level security;
 alter table public.food_logs        enable row level security;
 alter table public.foods            enable row level security;
+alter table public.plans            enable row level security;
 alter table public.deletions        enable row level security;
 
 do $$
 declare t text;
 begin
-  foreach t in array array['profiles','workouts','programs','custom_exercises','food_logs','foods','deletions']
+  foreach t in array array['profiles','workouts','programs','custom_exercises','food_logs','foods','plans','deletions']
   loop
     execute format('drop policy if exists %I_owner on public.%I;', t, t);
     execute format(
@@ -116,6 +127,7 @@ begin
   begin execute 'alter publication supabase_realtime add table public.custom_exercises'; exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table public.food_logs';        exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table public.foods';            exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table public.plans';            exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table public.profiles';         exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table public.deletions';        exception when duplicate_object then null; end;
 end $$;

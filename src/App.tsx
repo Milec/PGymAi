@@ -14,6 +14,7 @@ import {
   IconLift,
   IconMenu,
   IconProgram,
+  IconTrend,
   IconUser,
 } from '@/components/icons';
 import { WorkoutTimerBadge } from '@/components/WorkoutTimerBadge';
@@ -31,6 +32,7 @@ const ProgramsPage = lazyWithRetry(() => import('@/routes/ProgramsPage').then((m
 const HistoryPage = lazyWithRetry(() => import('@/routes/HistoryPage').then((m) => ({ default: m.HistoryPage })));
 const ProfilePage = lazyWithRetry(() => import('@/routes/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const FuelPage = lazyWithRetry(() => import('@/routes/FuelPage').then((m) => ({ default: m.FuelPage })));
+const FuelTrendsPage = lazyWithRetry(() => import('@/routes/FuelTrendsPage').then((m) => ({ default: m.FuelTrendsPage })));
 
 function RouteFallback() {
   return (
@@ -70,7 +72,10 @@ const NAV_GROUPS: { id: string; label: string; color: string; items: NavItem[] }
     id: 'nutrition',
     label: 'NUTRITION',
     color: 'var(--amber)',
-    items: [{ to: '/fuel', label: 'Fuel', short: 'Fuel', Icon: IconFuel }],
+    items: [
+      { to: '/fuel', label: 'Fuel', short: 'Fuel', Icon: IconFuel },
+      { to: '/fuel-trends', label: 'Trends', short: 'Diet', Icon: IconTrend },
+    ],
   },
 ];
 
@@ -297,6 +302,7 @@ export default function App() {
                 <Route path="/programs" element={<ProgramsPage />} />
                 <Route path="/history" element={<HistoryPage />} />
                 <Route path="/fuel" element={<FuelPage />} />
+                <Route path="/fuel-trends" element={<FuelTrendsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Routes>
             </Suspense>

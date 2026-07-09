@@ -122,8 +122,37 @@ export interface StoredProgram {
   updatedAt?: number;
 }
 
+/** One exercise slot in a planned workout. */
+export interface PlannedExercise {
+  id: string;
+  exerciseId: string;
+  /** Number of sets to pre-create. */
+  sets: number;
+  /** Target reps per set (shown as the rep placeholder while logging). */
+  reps?: number;
+  /** Target working weight in kg (pre-filled into each set). */
+  weightKg?: number;
+}
+
+/** A reusable workout blueprint built before training ("Planner"). */
+export interface WorkoutPlan {
+  id: string;
+  name: string;
+  exercises: PlannedExercise[];
+  createdAt: number;
+  lastUsedAt?: number;
+  /** Last-modified epoch ms — used for cloud sync (last-write-wins). */
+  updatedAt?: number;
+}
+
 /** Sync entity kinds that participate in cloud sync. */
-export type SyncEntity = 'workouts' | 'programs' | 'custom_exercises' | 'food_logs' | 'foods';
+export type SyncEntity =
+  | 'workouts'
+  | 'programs'
+  | 'custom_exercises'
+  | 'food_logs'
+  | 'foods'
+  | 'plans';
 
 /** A tombstone recording a local deletion so it can propagate to other devices. */
 export interface Deletion {
