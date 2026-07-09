@@ -8,6 +8,7 @@ import type {
   StoredProgram,
   SyncEntity,
   Workout,
+  WorkoutPlan,
 } from '@/db/types';
 import { supabase } from '@/lib/supabase';
 import { reconcile, type SyncRecord, type Tomb } from './merge';
@@ -88,6 +89,18 @@ const REGISTRY: EntityCfg[] = [
     },
     deleteLocal: async (id) => {
       await db.foods.delete(id);
+    },
+  },
+  {
+    entity: 'plans',
+    table: 'plans',
+    readLocal: async () =>
+      (await db.plans.toArray()).map((p) => ({ id: p.id, updatedAt: p.updatedAt ?? 0, data: p })),
+    writeLocal: async (data) => {
+      await db.plans.put(data as unknown as WorkoutPlan);
+    },
+    deleteLocal: async (id) => {
+      await db.plans.delete(id);
     },
   },
 ];

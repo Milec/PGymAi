@@ -105,12 +105,12 @@ export async function loadDemoData(): Promise<void> {
   for (const w of workouts) await persistWorkout(w);
 }
 
-/** A plausible day of eating for today's Fuel journal (id-prefixed so
- * re-running the loader replaces rather than duplicates it). */
+/** ~3 weeks of plausible eating (with a few skipped days) so the Fuel journal
+ * and Nutrition Trends have history. Id-prefixed so re-running the loader
+ * replaces rather than duplicates it. */
 async function seedDemoFoodDay(): Promise<void> {
   const oldFood = await db.foodLogs.filter((e) => e.id.startsWith('demofood-')).toArray();
   for (const e of oldFood) await removeFoodLog(e.id);
-  const date = dateKey();
   const runId = Date.now();
   const day: [MealId, string, string | undefined, MacroSet, number, number?][] = [
     ['breakfast', 'Rolled Oats (cooked)', undefined, { kcal: 71, proteinG: 2.5, carbsG: 12, fatG: 1.5 }, 300],
@@ -123,18 +123,28 @@ async function seedDemoFoodDay(): Promise<void> {
     ['snacks', 'Banana', undefined, { kcal: 89, proteinG: 1.1, carbsG: 23, fatG: 0.3 }, 120, 120],
   ];
   const now = Date.now();
-  const entries: FoodLogEntry[] = day.map(([meal, name, brand, per100, amountG, servingG], i) => ({
-    // Unique per load so a re-seed can't collide with its own tombstones.
-    id: `demofood-${runId}-${i}`,
-    date,
-    meal,
-    name,
-    brand,
-    per100,
-    amountG,
-    servingG,
-    loggedAt: now - (day.length - i) * 60000,
-  }));
+  const entries: FoodLogEntry[] = [];
+  for (let daysAgo = 20; daysAgo >= 0; daysAgo--) {
+    // Skip a couple of days so Trends demonstrates gap handling honestly.
+    if (daysAgo !== 0 && daysAgo % 6 === 3) continue;
+    const date = dateKey(new Date(now - daysAgo * 86400000));
+    // Deterministic ±12% day-to-day portion drift.
+    const drift = 1 + Math.sin(daysAgo * 2.1) * 0.12;
+    day.forEach(([meal, name, brand, per100, amountG, servingG], i) => {
+      entries.push({
+        // Unique per load so a re-seed can't collide with its own tombstones.
+        id: `demofood-${runId}-${daysAgo}-${i}`,
+        date,
+        meal,
+        name,
+        brand,
+        per100,
+        amountG: Math.round(amountG * drift),
+        servingG,
+        loggedAt: now - daysAgo * 86400000 - (day.length - i) * 60000,
+      });
+    });
+  }
   for (const e of entries) await persistFoodLog(e);
 }
 

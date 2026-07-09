@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageTitle, EmptyState } from '@/components/common';
 import { ExercisePicker } from '@/components/ExercisePicker';
+import { PlannerPanel } from '@/components/Planner';
 import { RestTimer } from '@/components/RestTimer';
 import { Chip, HudButton, HudPanel, HudInput, Readout, Tag } from '@/components/hud';
 import { IconCheck, IconLift, IconPlus, IconTrash } from '@/components/icons';
@@ -22,18 +23,21 @@ export function WorkoutPage() {
   if (!active) {
     return (
       <div>
-        <PageTitle title="Workout" sub="Launch a session and start logging." />
-        <EmptyState title="No Active Session">
-          <div className="mb-5">
-            Start a freestyle session to log any exercise, or follow a structured program day from
-            the Programs screen.
-          </div>
-          <div className="flex justify-center gap-3">
-            <HudButton onClick={() => void startWorkout()}>
-              <IconLift size={16} /> Start Freestyle
-            </HudButton>
-          </div>
-        </EmptyState>
+        <PageTitle title="Workout" sub="Plan ahead or launch a session and start logging." />
+        <div className="mb-4">
+          <EmptyState title="No Active Session">
+            <div className="mb-5">
+              Start a freestyle session to log any exercise, launch a saved plan below, or follow a
+              structured program day from the Programs screen.
+            </div>
+            <div className="flex justify-center gap-3">
+              <HudButton onClick={() => void startWorkout()}>
+                <IconLift size={16} /> Start Freestyle
+              </HudButton>
+            </div>
+          </EmptyState>
+        </div>
+        <PlannerPanel />
       </div>
     );
   }

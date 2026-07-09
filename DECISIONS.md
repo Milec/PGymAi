@@ -377,6 +377,30 @@ link (`/fuel?date=YYYY-MM-DD`, which the Fuel page reads on mount).
   transient failures, and debounces at 600 ms / 3+ chars. Barcode lookups
   (higher rate limit) also retry once.
 
+### Workout Planner (v8)
+
+Plans are pre-built workouts saved on the Workout tab: name + ordered
+exercise slots, each with a set count and optional target reps / weight
+(kg canonical, unit-converted in the editor). "Start" materialises a plan
+into a normal session — sets are pre-created with the target weight filled
+in and target reps as the rep placeholder (the same `targetReps` mechanism
+program-driven sessions use), so logging works identically from there.
+`plans` is a Dexie v4 table and a registered sync entity (same
+JSONB/LWW/tombstone model; `supabase/schema.sql` stays idempotent — re-run
+it to add the table). Launching a plan stamps `lastUsedAt`, which orders
+the saved list.
+
+### Nutrition Trends (v8)
+
+`/fuel-trends` (NUTRITION group) shows derived intake metrics over a
+selectable trailing window (1W/2W/1M/3M/All, mirroring the Progress page's
+period chips): average kcal / protein / carbs / fat per day, plus daily
+calorie and protein charts with dashed target reference lines. Two honesty
+rules, both unit-tested in `src/lib/fuelStats.ts`: **averages count only
+days with at least one logged food** (an unlogged day is missing data, not
+zero intake — the page says so), and chart axes are made continuous by
+inserting explicit zero-macro gap days rather than skipping dates.
+
 ### Quantity model (MyFitnessPal-style)
 
 A log amount is **number of servings × serving size**. The serving-size

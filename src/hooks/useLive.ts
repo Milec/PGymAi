@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo } from 'react';
 import { db } from '@/db/db';
-import type { Exercise, FoodLogEntry, SavedFood, Workout } from '@/db/types';
+import type { Exercise, FoodLogEntry, SavedFood, Workout, WorkoutPlan } from '@/db/types';
 
 export function useExercises(): Exercise[] {
   return useLiveQuery(() => db.exercises.toArray(), [], []) ?? [];
@@ -24,6 +24,20 @@ export function useFinishedWorkouts(): Workout[] {
 
 export function useAllWorkouts(): Workout[] {
   return useLiveQuery(() => db.workouts.toArray(), [], []) ?? [];
+}
+
+/** Saved workout plans, most recently used/created first. */
+export function usePlans(): WorkoutPlan[] {
+  return (
+    useLiveQuery(
+      async () =>
+        (await db.plans.toArray()).sort(
+          (a, b) => (b.lastUsedAt ?? b.createdAt) - (a.lastUsedAt ?? a.createdAt),
+        ),
+      [],
+      [],
+    ) ?? []
+  );
 }
 
 /** Every food-journal entry (for the activity calendar). */

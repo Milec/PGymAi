@@ -14,6 +14,7 @@ const routes = [
   ['programs', '/programs'],
   ['history', '/history'],
   ['fuel', '/fuel'],
+  ['fuel-trends', '/fuel-trends'],
   ['profile', '/profile'],
 ];
 
