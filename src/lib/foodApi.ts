@@ -7,9 +7,10 @@ import type { MacroSet } from './nutrition';
  * 1. Open Food Facts (world.openfoodfacts.org, ODbL) — global, crowdsourced.
  * 2. USDA FoodData Central Branded Foods (api.nal.usda.gov) — US-market
  *    products (label data submitted by manufacturers), which covers newer US
- *    items OFF often misses. Used as the fallback for barcodes and empty/
- *    failed searches. A free API key (VITE_USDA_FDC_KEY) unlocks 1000 req/hr;
- *    without one, barcode lookups still try USDA's shared DEMO_KEY.
+ *    items OFF often misses. A free API key (VITE_USDA_FDC_KEY) unlocks
+ *    1000 req/hr and full participation in every search; without one, both
+ *    barcode lookups and searches that OFF couldn't answer still fall back
+ *    to USDA's shared low-quota DEMO_KEY.
  *
  * Foods without usable energy data are dropped rather than logged as 0 kcal.
  */
@@ -58,8 +59,9 @@ function num(v: unknown): number | undefined {
 
 const FDC_BASE = 'https://api.nal.usda.gov/fdc/v1';
 const FDC_KEY: string = (import.meta.env?.VITE_USDA_FDC_KEY as string | undefined) || '';
-/** Real key → USDA joins search too. DEMO_KEY is rate-limited to a handful of
- * requests/hour per IP, so it's reserved for occasional barcode fallbacks. */
+/** Real key → USDA joins every search in parallel with OFF. DEMO_KEY is
+ * rate-limited to a handful of requests/hour per IP, so it's reserved for
+ * barcode fallbacks and searches OFF couldn't answer. */
 const fdcSearchEnabled = FDC_KEY.length > 0;
 
 interface FdcNutrient {
@@ -139,15 +141,23 @@ async function fdcQuery(
   return out;
 }
 
-/** Free-text FDC search: every term required, so relevance stays tight. */
-async function fdcSearch(query: string, signal?: AbortSignal): Promise<ApiFood[]> {
-  const terms = query
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((t) => `+${t}`)
-    .join(' ');
-  // SR Legacy adds USDA's generic whole foods ("Beef, ground, 93% lean...").
-  return fdcQuery(terms, 25, FDC_KEY, 'Branded,SR%20Legacy', signal);
+// SR Legacy adds USDA's generic whole foods ("Beef, ground, 93% lean...").
+const FDC_SEARCH_TYPES = 'Branded,SR%20Legacy';
+
+/** Free-text FDC search: every term required first, so relevance stays
+ * tight. When that matches nothing (typos — "bulgolgi mandu"), retry letting
+ * FDC OR the terms; rankFoods keeps only near-misses, so noise stays out. */
+async function fdcSearch(query: string, key: string, signal?: AbortSignal): Promise<ApiFood[]> {
+  const terms = query.split(/\s+/).filter(Boolean);
+  const strict = await fdcQuery(
+    terms.map((t) => `+${t}`).join(' '),
+    25,
+    key,
+    FDC_SEARCH_TYPES,
+    signal,
+  );
+  if (strict.length > 0 || terms.length < 2) return strict;
+  return fdcQuery(terms.join(' '), 25, key, FDC_SEARCH_TYPES, signal);
 }
 
 /** Barcode lookup on FDC via the gtinUpc field (exact match). */
@@ -311,48 +321,67 @@ async function fetchSearch(query: string, signal?: AbortSignal): Promise<ApiFood
 }
 
 /**
- * Free-text catalogue search across both sources: OFF first (cached per
- * query, one automatic retry), then — with a USDA key configured — FDC
- * results merged in (deduped by barcode). USDA also acts as the fallback
- * when OFF fails outright. Throws FoodApiError when every source fails.
+ * Free-text catalogue search across both sources, merged (deduped by
+ * barcode) and ranked. OFF and FDC run concurrently — OFF's public endpoint
+ * fails often enough (429s, 503s, HTML error pages) that USDA can't queue
+ * behind its retry. Without a real FDC key, USDA joins only as a DEMO_KEY
+ * fallback when OFF failed or matched nothing, to conserve its tiny quota.
+ * Throws FoodApiError only when no source could answer at all — a source
+ * that answered "no matches" is a real empty result, not an outage.
  */
 export async function searchFoods(query: string, signal?: AbortSignal): Promise<ApiFood[]> {
   const key = query.trim().toLowerCase();
   const cached = searchCache.get(key);
   if (cached) return cached;
 
+  const offPromise = (async () => {
+    try {
+      return await fetchSearch(query, signal);
+    } catch (err) {
+      // Aborts propagate (a newer query took over); anything else gets one retry.
+      if (err instanceof DOMException && err.name === 'AbortError') throw err;
+      await new Promise((r) => setTimeout(r, 1200));
+      if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
+      return fetchSearch(query, signal);
+    }
+  })();
+  const fdcPromise = fdcSearchEnabled ? fdcSearch(query, FDC_KEY, signal) : null;
+  fdcPromise?.catch(() => {}); // handled below; don't surface as unhandled if OFF aborts first
+
   let off: ApiFood[] = [];
   let offError: unknown = null;
   try {
-    off = await fetchSearch(query, signal);
+    off = await offPromise;
   } catch (err) {
-    // Aborts propagate (a newer query took over); anything else gets one retry.
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    await new Promise((r) => setTimeout(r, 1200));
-    if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
-    try {
-      off = await fetchSearch(query, signal);
-    } catch (err2) {
-      if (err2 instanceof DOMException && err2.name === 'AbortError') throw err2;
-      offError = err2;
-    }
+    offError = err;
   }
 
-  let merged = off;
-  if (fdcSearchEnabled) {
+  let fdc: ApiFood[] = [];
+  let fdcError: unknown = null;
+  const fdcAttempt =
+    fdcPromise ??
+    (offError !== null || off.length === 0 ? fdcSearch(query, 'DEMO_KEY', signal) : null);
+  if (fdcAttempt) {
     try {
-      const fdc = await fdcSearch(query, signal);
-      const seen = new Set(off.map((f) => dedupeKey(f.barcode)));
-      merged = [...off, ...fdc.filter((f) => !seen.has(dedupeKey(f.barcode)))];
+      fdc = await fdcAttempt;
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') throw err;
-      // FDC is best-effort during search; only fail if OFF failed too.
-      if (offError) throw offError;
+      fdcError = err;
     }
   }
-  if (offError && merged.length === 0) throw offError;
 
-  merged = rankFoods(query, merged);
+  if (offError !== null && (fdcAttempt === null || fdcError !== null)) throw offError;
+
+  const seen = new Set(off.map((f) => dedupeKey(f.barcode)));
+  const merged = rankFoods(query, [
+    ...off,
+    ...fdc.filter((f) => !seen.has(dedupeKey(f.barcode))),
+  ]);
+
+  // An empty result while a source was down isn't trustworthy enough to pin
+  // for the whole session — leave it uncached so a later retype can recover.
+  if (merged.length === 0 && (offError !== null || fdcError !== null)) return merged;
 
   if (searchCache.size >= SEARCH_CACHE_MAX) {
     const first = searchCache.keys().next().value;
