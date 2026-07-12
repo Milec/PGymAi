@@ -28,6 +28,17 @@ interface AuthState {
 
 let initialized = false;
 
+/**
+ * Where Supabase auth emails (signup confirmation, magic link) send the user:
+ * this deployment's base URL — e.g. https://<user>.github.io/<repo>/ on Pages.
+ * Without an explicit emailRedirectTo, Supabase falls back to the project's
+ * Site URL, which defaults to localhost. Deliberately NOT location.href: the
+ * auth tokens arrive in the URL fragment, which would collide with a
+ * HashRouter route in the redirect target. The URL (and any other deploy
+ * origin) must be on the Supabase project's Redirect URL allowlist.
+ */
+const authRedirectUrl = () => new URL(import.meta.env.BASE_URL, window.location.origin).href;
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   configured: isSupabaseConfigured,
   ready: !isSupabaseConfigured,
@@ -94,7 +105,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signUp: async (email, password) => {
     if (!supabase) return { error: 'Cloud sync is not configured.' };
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: authRedirectUrl() },
+    });
     if (error) return { error: error.message };
     // If email confirmation is on, there is no session yet.
     return { needsConfirm: !data.session };
@@ -110,7 +125,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!supabase) return { error: 'Cloud sync is not configured.' };
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.href },
+      options: { emailRedirectTo: authRedirectUrl() },
     });
     return error ? { error: error.message } : {};
   },
