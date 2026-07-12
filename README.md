@@ -146,12 +146,20 @@ devices in the background.
    Editor (creates the tables, RLS policies, and Realtime publication). The
    script is idempotent — re-run it after updating STRIDE to pick up new
    tables (e.g. the Fuel journal's `food_logs` / `foods`).
-3. Set env vars (local `.env`, or repo secrets for the Pages deploy):
+3. Configure auth URLs (Supabase dashboard → **Authentication → URL
+   Configuration**) so signup-confirmation and magic-link emails point at the
+   deployed app instead of the default `http://localhost:3000`:
+   - **Site URL**: your deployed base URL, e.g.
+     `https://<user>.github.io/<repo>/`.
+   - **Redirect URLs**: add the same URL (and `http://localhost:5173/` if you
+     also sign in from local dev). The app requests a redirect to its own
+     base URL, but Supabase only honours URLs on this allowlist.
+4. Set env vars (local `.env`, or repo secrets for the Pages deploy):
    ```bash
    VITE_SUPABASE_URL=https://<project>.supabase.co
    VITE_SUPABASE_ANON_KEY=<anon-or-publishable-key>
    ```
-4. Run the app, open **Profile → Cloud Sync**, and sign in.
+5. Run the app, open **Profile → Cloud Sync**, and sign in.
 
 If the env vars are unset the app simply runs local-only. If you sign in before
 running the schema, the Cloud Sync panel tells you the tables are missing.

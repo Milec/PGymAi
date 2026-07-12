@@ -184,6 +184,13 @@ sacrificing the offline-first design.
 - **Security**: Row Level Security scopes every row to `auth.uid()`.
 - **Auth**: email/password + magic-link (`signInWithOtp`). OAuth is intentionally
   deferred (needs per-provider dashboard config).
+- **Auth email redirects** (v12): both signup and magic-link pass
+  `emailRedirectTo` = this deployment's base URL (origin + Vite base) —
+  without it, Supabase builds confirmation links from the project's Site
+  URL, which defaults to localhost. The base URL rather than
+  `location.href`: auth tokens arrive in the URL fragment and would collide
+  with a HashRouter route in the redirect target. The deployed URL must be
+  on the project's Redirect URL allowlist (README setup step).
 - **Limitations** (documented in-app + README): LWW is record-level, not
   field-level; the seeded exercise library isn't synced (identical everywhere),
   only custom exercises are.
