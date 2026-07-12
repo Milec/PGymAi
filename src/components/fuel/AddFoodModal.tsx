@@ -154,10 +154,11 @@ function PickView({
 
   const q = query.trim();
 
-  // Debounced live search against the Open Food Facts catalogue. All state
-  // updates happen inside the (async) timer so typing never cascades renders.
-  // The debounce is deliberately long and the client caches + retries: the
-  // public search endpoint rate-limits aggressively (~10 req/min).
+  // Debounced live search against the food catalogues (Open Food Facts +
+  // USDA). All state updates happen inside the (async) timer so typing never
+  // cascades renders. The debounce is deliberately long and the client
+  // caches + retries: OFF's search endpoint rate-limits aggressively
+  // (~10 req/min).
   useEffect(() => {
     const ctl = new AbortController();
     const t = setTimeout(

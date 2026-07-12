@@ -305,14 +305,25 @@ gram serving sizes. Layering:
   codes inconsistently. "Not in catalogue" is only reported when at least
   one source definitively answered; otherwise the error/rate-limit state
   shows.
-- **Search**: OFF results first with FDC merged in (deduped by
-  leading-zero-normalised barcode; FDC queries require every term via `+`
-  prefixes for tight relevance). FDC search only runs with a real API key.
+- **Search** (reworked v12): both catalogues are queried **concurrently**
+  — OFF's public search endpoint fails often enough (429s, 503s, HTML
+  error pages) that USDA can't queue behind OFF's retry — then merged
+  (OFF first, deduped by leading-zero-normalised barcode) and ranked.
+  FDC queries require every term via `+` prefixes for tight relevance;
+  when that matches nothing (typos — "bulgolgi mandu"), one retry lets
+  FDC OR the terms and `rankFoods` keeps only near-misses.
+- **Failure semantics** (v12): search throws only when *no* source could
+  answer. A source that answered "no matches" is a real empty result —
+  previously OFF-down + USDA-empty surfaced as "catalogue unreachable"
+  even though USDA had answered. Empty results seen while a source was
+  down are not session-cached, so a later retype can recover.
 - **Key gating**: `VITE_USDA_FDC_KEY` (free, instant, from
-  fdc.nal.usda.gov/api-key-signup; 1000 req/hr) enables search + barcode.
-  Without it, barcode lookups still try USDA's shared `DEMO_KEY` — a
-  best-effort, low-rate-limit last resort. Mirrors the Supabase env
-  pattern: unset → the app simply behaves as before.
+  fdc.nal.usda.gov/api-key-signup; 1000 req/hr) puts FDC in every search.
+  Without it, barcode lookups and searches that OFF failed or matched
+  nothing on still try USDA's shared `DEMO_KEY` — a best-effort,
+  low-rate-limit last resort (~30 req/hr, so it never runs while OFF is
+  answering with results). Mirrors the Supabase env pattern: unset → the
+  app degrades gracefully.
 
 ### Search relevance (v11)
 
