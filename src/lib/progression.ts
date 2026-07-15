@@ -1,6 +1,6 @@
 import type { Intensity, PrescribedExercise, Progression } from '@/schema/program';
 import { estimate1rm } from './e1rm';
-import { roundToIncrement, toKg, type Unit } from './units';
+import { roundKgToIncrement, roundToIncrement, toKg, type Unit } from './units';
 
 /** Summary of the last time an exercise was performed, for auto-regulation. */
 export interface LastPerformance {
@@ -81,7 +81,7 @@ function fromIntensity(
       };
     case 'percent1rm': {
       if (!currentE1rmKg) return null;
-      const w = roundToIncrement((intensity.value / 100) * currentE1rmKg, unit);
+      const w = roundKgToIncrement((intensity.value / 100) * currentE1rmKg, unit);
       return {
         weightKg: w,
         reps: ex.reps,
@@ -92,7 +92,7 @@ function fromIntensity(
       // Auto-regulate from e1RM using an RPE→%1RM table (reps-in-reserve based).
       if (!currentE1rmKg) return null;
       const pct = rpePercent(intensity.value, repTop(ex.reps));
-      const w = roundToIncrement(pct * currentE1rmKg, unit);
+      const w = roundKgToIncrement(pct * currentE1rmKg, unit);
       return {
         weightKg: w,
         reps: ex.reps,
@@ -147,7 +147,7 @@ function applyProgression(
       const base = currentE1rmKg ?? last?.bestE1rmKg;
       if (!base) return null;
       return {
-        weightKg: roundToIncrement((prog.percent / 100) * base, unit),
+        weightKg: roundKgToIncrement((prog.percent / 100) * base, unit),
         reps: ex.reps,
         rationale: `${prog.percent}% of current est. 1RM.`,
       };

@@ -5,15 +5,17 @@ import { ExercisePicker } from '@/components/ExercisePicker';
 import { PlannerPanel } from '@/components/Planner';
 import { RestTimer } from '@/components/RestTimer';
 import { Chip, HudButton, HudPanel, HudInput, Readout, Tag } from '@/components/hud';
-import { IconCheck, IconLift, IconPlus, IconTrash } from '@/components/icons';
+import { IconCheck, IconLift, IconPlate, IconPlus, IconTrash } from '@/components/icons';
 import { useExerciseMap, useFinishedWorkouts } from '@/hooks/useLive';
 import { useNow } from '@/hooks/useNow';
+import type { Equipment } from '@/data/muscles';
 import type { LoggedSet, WorkoutEntry } from '@/db/types';
 import { bestE1rm } from '@/lib/analytics';
 import { e1rmBreakdown } from '@/lib/e1rm';
 import { rpePercent } from '@/lib/progression';
 import { formatDuration } from '@/lib/time';
-import { formatWeight, fromKg, roundToIncrement, toKg, type Unit } from '@/lib/units';
+import { computePlateLoad, isBarbellEquipment } from '@/lib/plates';
+import { formatWeight, fromKg, roundKgToIncrement, toKg, type Unit } from '@/lib/units';
 import { useAppStore } from '@/store/useAppStore';
 
 export function WorkoutPage() {
@@ -137,6 +139,10 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
   const setEntryNotes = useAppStore((s) => s.setEntryNotes);
   const updateSet = useAppStore((s) => s.updateSet);
   const ex = exMap.get(entry.exerciseId);
+  const [showPlates, setShowPlates] = useState(false);
+  const barbell = isBarbellEquipment(ex?.equipment);
+  // "Next set" = the first set still to be done, else the last one.
+  const nextSet = entry.sets.find((s) => !s.completed) ?? entry.sets[entry.sets.length - 1];
 
   const best = useMemo(() => {
     let b = 0;
@@ -179,6 +185,23 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
               </div>
             </div>
           )}
+          {barbell && (
+            <button
+              onClick={() => setShowPlates((v) => !v)}
+              className="chamfer flex h-9 w-9 items-center justify-center border transition-all"
+              style={{
+                borderColor: showPlates ? 'var(--cyan)' : 'var(--line-strong)',
+                background: showPlates ? 'rgba(45,212,255,0.14)' : 'transparent',
+                color: showPlates ? 'var(--cyan)' : 'var(--ink-faint)',
+                boxShadow: showPlates ? '0 0 12px rgba(45,212,255,0.35)' : 'none',
+              }}
+              aria-label="Plate calculator"
+              aria-pressed={showPlates}
+              title="Plate calculator"
+            >
+              <IconPlate size={18} />
+            </button>
+          )}
           <button
             onClick={() => removeEntry(entry.id)}
             className="text-[var(--ink-faint)] transition-colors hover:text-[var(--down)]"
@@ -188,6 +211,16 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
           </button>
         </div>
       </div>
+
+      {barbell && showPlates && (
+        <PlateCalc
+          weightKg={nextSet?.weightKg ?? 0}
+          reps={nextSet?.reps ?? 0}
+          setIndex={nextSet ? entry.sets.indexOf(nextSet) + 1 : 0}
+          unit={profile.units}
+          equipment={ex?.equipment}
+        />
+      )}
 
       <AutoFill
         oneRmKg={oneRmKg}
@@ -232,6 +265,77 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
   );
 }
 
+function PlateCalc({
+  weightKg,
+  reps,
+  setIndex,
+  unit,
+  equipment,
+}: {
+  weightKg: number;
+  reps: number;
+  setIndex: number;
+  unit: Unit;
+  equipment?: Equipment;
+}) {
+  const load = weightKg > 0 ? computePlateLoad(weightKg, unit, equipment) : null;
+
+  return (
+    <div className="mb-3 rounded-[3px] border border-[var(--cyan)]/40 bg-[rgba(45,212,255,0.05)] p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-head text-[9px] tracking-widest text-[var(--cyan)]">
+          ⚖ PLATES · SET {setIndex || '—'}
+        </span>
+        {load && (
+          <span className="mono text-[10px] text-[var(--ink-faint)]">
+            {formatWeight(toKg(load.bar, unit), unit)} {unit} bar
+          </span>
+        )}
+      </div>
+
+      {weightKg <= 0 ? (
+        <p className="text-[11px] leading-relaxed text-[var(--ink-faint)]">
+          Enter or auto-fill a weight for your next set to see the plate math.
+        </p>
+      ) : !load ? (
+        <p className="text-[11px] leading-relaxed text-[var(--ink-faint)]">
+          {formatWeight(weightKg, unit)} {unit} is at or below the empty bar — no plates needed.
+        </p>
+      ) : (
+        <>
+          <div className="mb-2 flex items-baseline gap-2">
+            <span className="mono text-lg font-semibold text-[var(--ink)]">
+              {load.target} {unit}
+            </span>
+            {reps > 0 && <span className="mono text-[11px] text-[var(--ink-faint)]">× {reps}</span>}
+            <span className="mono text-[10px] text-[var(--ink-faint)]">per side →</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {load.perSide.length === 0 ? (
+              <span className="mono text-[12px] text-[var(--ink-dim)]">just the bar</span>
+            ) : (
+              load.perSide.map((p) => (
+                <span
+                  key={p.plate}
+                  className="mono flex items-center gap-1 rounded-[3px] border border-[var(--line-strong)] px-2 py-1 text-[12px] text-[var(--ink)]"
+                >
+                  <span className="text-[var(--cyan)]">{p.count}×</span>
+                  {p.plate}
+                </span>
+              ))
+            )}
+          </div>
+          {!load.exact && (
+            <p className="mt-2 text-[10px] text-[var(--amber)]">
+              Closest with standard plates is {load.loaded} {unit} ({load.remainder} {unit} short).
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function AutoFill({
   oneRmKg,
   unit,
@@ -253,12 +357,12 @@ function AutoFill({
     if (mode === 'percent') {
       const p = parseFloat(percent);
       if (!p) return 0;
-      return roundToIncrement((p / 100) * oneRmKg, unit);
+      return roundKgToIncrement((p / 100) * oneRmKg, unit);
     }
     const r = parseFloat(rpe);
     const n = parseInt(reps);
     if (!r || !n) return 0;
-    return roundToIncrement(rpePercent(r, n) * oneRmKg, unit);
+    return roundKgToIncrement(rpePercent(r, n) * oneRmKg, unit);
   })();
 
   return (
@@ -380,7 +484,7 @@ function SetRow({
           placeholder="%"
           onChange={(e) => {
             const pct = parseFloat(e.target.value);
-            const weightKg = pct > 0 ? roundToIncrement((pct / 100) * oneRmKg, unit) : 0;
+            const weightKg = pct > 0 ? roundKgToIncrement((pct / 100) * oneRmKg, unit) : 0;
             updateSet(entryId, set.id, { weightKg });
           }}
           className="cell"

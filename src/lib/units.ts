@@ -12,10 +12,24 @@ export function toKg(value: number, unit: Unit): number {
   return unit === 'kg' ? value : value * KG_PER_LB;
 }
 
-/** Round to the nearest sensible plate increment for the unit. */
+/** Smallest weight change realisable with a pair of the smallest common plate. */
+export function increment(unit: Unit): number {
+  return unit === 'kg' ? 2.5 : 5;
+}
+
+/** Round a value already expressed in `unit` to the nearest plate increment. */
 export function roundToIncrement(value: number, unit: Unit): number {
-  const step = unit === 'kg' ? 2.5 : 5;
+  const step = increment(unit);
   return Math.round(value / step) * step;
+}
+
+/**
+ * Round a kg-stored weight to the nearest plate increment *in the display unit*,
+ * returning kg. This keeps auto-filled weights on clean 5 lb / 2.5 kg steps so
+ * the plate calculator always lands on real plates.
+ */
+export function roundKgToIncrement(kg: number, unit: Unit): number {
+  return toKg(roundToIncrement(fromKg(kg, unit), unit), unit);
 }
 
 /** Format a kg value for display in the given unit (no unit suffix). */
