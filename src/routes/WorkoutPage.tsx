@@ -162,7 +162,8 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
   const updateSet = useAppStore((s) => s.updateSet);
   const ex = exMap.get(entry.exerciseId);
   const [showPlates, setShowPlates] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useAppStore((s) => s.collapsedEntries.includes(entry.id));
+  const toggleEntryCollapsed = useAppStore((s) => s.toggleEntryCollapsed);
   const barbell = isBarbellEquipment(ex?.equipment);
   // "Next set" = the first set still to be done, else the last one.
   const nextSet = entry.sets.find((s) => !s.completed) ?? entry.sets[entry.sets.length - 1];
@@ -192,7 +193,7 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
     <HudPanel className="p-4" label={ex?.equipment.toUpperCase()}>
       <div className={`flex items-start justify-between gap-2 ${collapsed ? '' : 'mb-3'}`}>
         <button
-          onClick={() => setCollapsed((c) => !c)}
+          onClick={() => toggleEntryCollapsed(entry.id)}
           className="flex min-w-0 items-start gap-2 text-left"
           aria-expanded={!collapsed}
           aria-label={collapsed ? 'Expand exercise' : 'Collapse exercise'}

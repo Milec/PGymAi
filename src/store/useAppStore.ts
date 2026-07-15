@@ -8,6 +8,17 @@ import { applyTheme, DEFAULT_THEME, type ThemeName } from '@/lib/theme';
 import { persistProfile, persistWorkout, removeWorkout } from '@/sync/local';
 
 const REST_KEY = 'stride.restEndsAt';
+const COLLAPSE_KEY = 'stride.collapsedEntries';
+
+function loadCollapsedEntries(): string[] {
+  try {
+    const raw = localStorage.getItem(COLLAPSE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 interface AppState {
   ready: boolean;
@@ -18,6 +29,9 @@ interface AppState {
   /** True when the inline rest timer has scrolled out of view and should dock
    * into the top banner. Transient UI state — not persisted. */
   restDocked: boolean;
+  /** Ids of exercise entries the user has collapsed. Persisted across
+   * navigation and reloads; cleared when the session ends. */
+  collapsedEntries: string[];
 
   init: () => Promise<void>;
   reloadFromDb: () => Promise<void>;
@@ -42,6 +56,7 @@ interface AppState {
   clearRest: () => void;
   addRest: (delta: number) => void;
   setRestDocked: (docked: boolean) => void;
+  toggleEntryCollapsed: (entryId: string) => void;
 }
 
 function persistActive(w: Workout | null) {
@@ -88,6 +103,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   restEndsAt: null,
   restDurationSec: 0,
   restDocked: false,
+  collapsedEntries: loadCollapsedEntries(),
 
   init: async () => {
     await ensureSeeded();
@@ -287,8 +303,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       await persistProfile(updated);
     }
 
-    set({ active: null, restEndsAt: null });
+    set({ active: null, restEndsAt: null, collapsedEntries: [] });
     localStorage.removeItem(REST_KEY);
+    localStorage.removeItem(COLLAPSE_KEY);
     return finished.id;
   },
 
@@ -296,8 +313,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const a = get().active;
     if (!a) return;
     await removeWorkout(a.id);
-    set({ active: null, restEndsAt: null });
+    set({ active: null, restEndsAt: null, collapsedEntries: [] });
     localStorage.removeItem(REST_KEY);
+    localStorage.removeItem(COLLAPSE_KEY);
   },
 
   startRest: (sec) => {
@@ -321,5 +339,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setRestDocked: (docked) => {
     if (get().restDocked !== docked) set({ restDocked: docked });
+  },
+
+  toggleEntryCollapsed: (entryId) => {
+    const cur = get().collapsedEntries;
+    const next = cur.includes(entryId) ? cur.filter((id) => id !== entryId) : [...cur, entryId];
+    localStorage.setItem(COLLAPSE_KEY, JSON.stringify(next));
+    set({ collapsedEntries: next });
   },
 }));
