@@ -18,6 +18,7 @@ import {
   IconUser,
 } from '@/components/icons';
 import { WorkoutTimerBadge } from '@/components/WorkoutTimerBadge';
+import { DockedRestTimer } from '@/components/RestTimer';
 import { useAppStore } from '@/store/useAppStore';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -284,14 +285,18 @@ export default function App() {
             <NavGroups />
           </div>
           <div className="mt-auto pt-4">
+            <DockedRestTimer />
             <WorkoutTimerBadge />
           </div>
         </aside>
 
-        {/* Mobile header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[var(--line)] bg-[rgba(5,7,15,0.7)] px-4 py-3 backdrop-blur-md md:hidden">
-          <Brand />
-          <WorkoutTimerBadge compact />
+        {/* Mobile header — the rest timer docks in here on scroll */}
+        <header className="sticky top-0 z-30 flex flex-col border-b border-[var(--line)] bg-[rgba(5,7,15,0.7)] px-4 py-3 backdrop-blur-md md:hidden">
+          <div className="flex items-center justify-between">
+            <Brand />
+            <WorkoutTimerBadge compact />
+          </div>
+          <DockedRestTimer />
         </header>
 
         {/* Main content */}

@@ -15,6 +15,9 @@ interface AppState {
   active: Workout | null;
   restEndsAt: number | null;
   restDurationSec: number;
+  /** True when the inline rest timer has scrolled out of view and should dock
+   * into the top banner. Transient UI state — not persisted. */
+  restDocked: boolean;
 
   init: () => Promise<void>;
   reloadFromDb: () => Promise<void>;
@@ -38,6 +41,7 @@ interface AppState {
   startRest: (sec?: number) => void;
   clearRest: () => void;
   addRest: (delta: number) => void;
+  setRestDocked: (docked: boolean) => void;
 }
 
 function persistActive(w: Workout | null) {
@@ -83,6 +87,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   active: null,
   restEndsAt: null,
   restDurationSec: 0,
+  restDocked: false,
 
   init: async () => {
     await ensureSeeded();
@@ -312,5 +317,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const endsAt = Math.max(Date.now(), cur + delta * 1000);
     localStorage.setItem(REST_KEY, String(endsAt));
     set({ restEndsAt: endsAt });
+  },
+
+  setRestDocked: (docked) => {
+    if (get().restDocked !== docked) set({ restDocked: docked });
   },
 }));
