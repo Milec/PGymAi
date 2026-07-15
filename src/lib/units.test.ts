@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { cmToFtIn, formatWeight, fromKg, ftInToCm, roundToIncrement, toKg } from './units';
+import {
+  cmToFtIn,
+  formatWeight,
+  fromKg,
+  ftInToCm,
+  roundKgToIncrement,
+  roundToIncrement,
+  toKg,
+} from './units';
 
 describe('unit conversion', () => {
   it('kg is identity', () => {
@@ -17,6 +25,17 @@ describe('unit conversion', () => {
     expect(roundToIncrement(101, 'kg')).toBe(100); // nearest 2.5
     expect(roundToIncrement(103, 'kg')).toBe(102.5);
     expect(roundToIncrement(133, 'lb')).toBe(135); // nearest 5
+  });
+
+  it('rounds kg-stored weights to plate steps in the display unit', () => {
+    // lb user: 50% of a 420 lb 1RM = 210 lb exactly → stays on a clean 5 lb step.
+    const oneRmKg = toKg(420, 'lb');
+    expect(fromKg(roundKgToIncrement(0.5 * oneRmKg, 'lb'), 'lb')).toBeCloseTo(210, 6);
+    // An off-grid lb weight snaps to the nearest 5 lb, not the nearest 5 kg.
+    expect(fromKg(roundKgToIncrement(toKg(212, 'lb'), 'lb'), 'lb')).toBeCloseTo(210, 6);
+    expect(fromKg(roundKgToIncrement(toKg(213, 'lb'), 'lb'), 'lb')).toBeCloseTo(215, 6);
+    // kg user rounds to the nearest 2.5 kg.
+    expect(roundKgToIncrement(101, 'kg')).toBeCloseTo(100, 6);
   });
 
   it('formats without trailing noise', () => {
