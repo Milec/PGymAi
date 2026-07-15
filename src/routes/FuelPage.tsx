@@ -148,11 +148,11 @@ export function FuelPage() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {MEALS.map((meal) => {
           const bucket = byMeal.get(meal.id)!;
           return (
-            <HudPanel key={meal.id} className="p-4" label={meal.label.toUpperCase()} bracketColor="var(--amber)">
+            <HudPanel key={meal.id} className="min-w-0 p-4" label={meal.label.toUpperCase()} bracketColor="var(--amber)">
               <div className="mb-1 flex items-center justify-between">
                 <span className="mono text-[11px] text-[var(--ink-dim)]">
                   {bucket.entries.length > 0 ? (
