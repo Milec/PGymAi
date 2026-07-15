@@ -420,6 +420,32 @@ test('dashboard shows an app-wide fuel summary with quick water add', async ({ p
     .toBe(String(Number(before) + 250));
 });
 
+test('fuel page does not overflow horizontally with a long food name (mobile)', async ({ page }) => {
+  await freshApp(page);
+  await page.setViewportSize({ width: 393, height: 852 });
+  // A long, unbreakable USDA-style name used to blow out the meal grid width.
+  await page.evaluate(async () => {
+    const { db } = await import('/src/db/db.ts');
+    const today = new Date().toLocaleDateString('en-CA');
+    await db.foodLogs.add({
+      id: 'overflow-probe',
+      date: today,
+      meal: 'breakfast',
+      name: "Apples, Raw, With Skin (Includes Foods For Usda's Food Distribution Program)",
+      brand: 'USDA',
+      per100: { kcal: 52, proteinG: 0, carbsG: 14, fatG: 0 },
+      amountG: 100,
+      loggedAt: Date.now(),
+    });
+  });
+  await page.goto('/#/fuel');
+  await expect(page.getByText(/Apples, Raw/).first()).toBeVisible();
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+});
+
 test('adding an example program then following it works', async ({ page }) => {
   await freshApp(page);
   await page.goto('/#/programs');
