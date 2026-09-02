@@ -19,6 +19,7 @@ import {
 } from '@/components/icons';
 import { WorkoutTimerBadge } from '@/components/WorkoutTimerBadge';
 import { DockedRestTimer } from '@/components/RestTimer';
+import { flushPendingPushes } from '@/sync/local';
 import { useAppStore } from '@/store/useAppStore';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -259,6 +260,23 @@ export default function App() {
     // Seed + load local data first, then bring up auth/sync (which reads the DB).
     void init().then(() => authInit());
   }, [init, authInit]);
+
+  // Keep the in-memory session honest across backgrounding. Going away flushes
+  // queued cloud pushes before the browser can throw the timers out; coming
+  // back re-reads IndexedDB, so a session finished in another tab (or synced
+  // down from another device) doesn't linger here as still running.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushPendingPushes();
+      else void useAppStore.getState().reloadFromDb();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flushPendingPushes);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flushPendingPushes);
+    };
+  }, []);
 
   if (!ready) {
     return (

@@ -178,9 +178,13 @@ sacrificing the offline-first design.
   `deletions` table) so a delete on one device removes the record everywhere,
   even across offline windows.
 - **Realtime**: `postgres_changes` subscriptions apply inbound edits/deletes from
-  other devices live. Store writes push optimistically (debounced ~1.5s so
-  typing a set doesn't spam the network); a full `reconcile` runs on sign-in and
-  on reconnect (`online` event).
+  other devices live, gated by the same last-write-wins rule as `reconcile()` —
+  `applyInboundRecord()` writes a row only when it is strictly newer than the
+  local copy and newer than any local tombstone. Realtime echoes a device's own
+  writes back to it and rows can arrive out of order, so an unguarded write let
+  a stale copy overwrite a fresher one. Store writes push optimistically
+  (debounced ~1.5s so typing a set doesn't spam the network); a full
+  `reconcile` runs on sign-in and on reconnect (`online` event).
 - **Security**: Row Level Security scopes every row to `auth.uid()`.
 - **Auth**: email/password + magic-link (`signInWithOtp`). OAuth is intentionally
   deferred (needs per-provider dashboard config).
@@ -447,6 +451,26 @@ link (`/fuel?date=YYYY-MM-DD`, which the Fuel page reads on mount).
   "catalogue busy" from "offline", keeps stale results on screen through
   transient failures, and debounces at 600 ms / 3+ chars. Barcode lookups
   (higher rate limit) also retry once.
+
+- **"Finish session" that didn't stick (v12)**: a session could report
+  finished and then reappear as still-running the next morning. Three
+  compounding causes, all fixed. (1) The debounced push queue captured its
+  snapshot in the timer closure, so an edit queued mid-session fired ~1.5s
+  *after* the immediate push from Finish and overwrote the finished session
+  on the server with a still-running copy — the queue now holds the latest
+  snapshot per record, an immediate push or a delete cancels anything
+  queued for that record, and `flushPendingPushes()` drains the queue on
+  `visibilitychange`/`pagehide` so backgrounding the app doesn't strand
+  edits. (2) Realtime then echoed that stale row straight back into
+  IndexedDB (see the LWW gate above), so `init()` found an unfinished
+  workout on the next launch. (3) `reloadFromDb()` kept the in-memory
+  session alive even when the DB said it was finished or deleted, so a
+  session finished in another tab or on another device could be re-stamped
+  and un-finished by the next edit; it now clears `active` in both cases
+  and refreshes on tab focus. `finishWorkout()` also reads the workout back
+  before tearing the session down and throws if it didn't land, so a failed
+  save leaves the session on screen with an error instead of silently
+  discarding it.
 
 ### Workout Planner (v8)
 

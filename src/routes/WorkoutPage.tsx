@@ -86,8 +86,14 @@ function ActiveSession() {
   );
 
   const finish = async () => {
-    const id = await finishWorkout();
-    navigate(id ? '/progress' : '/');
+    try {
+      const id = await finishWorkout();
+      navigate(id ? '/progress' : '/');
+    } catch (err) {
+      // The session is still open and still on screen — say so rather than
+      // navigating away as if it had been filed.
+      alert((err as Error).message || 'Could not save this session.');
+    }
   };
   const discard = async () => {
     if (confirm('Discard this session? Logged sets will be lost.')) {
