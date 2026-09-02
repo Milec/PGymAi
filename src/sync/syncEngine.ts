@@ -19,10 +19,12 @@ export function stamp<T extends { updatedAt?: number }>(obj: T): T {
   return { ...obj, updatedAt: Date.now() };
 }
 
-interface EntityCfg {
+export interface EntityCfg {
   entity: SyncEntity;
   table: string;
   readLocal: () => Promise<SyncRecord[]>;
+  /** One local record by id — used to date-check inbound realtime rows. */
+  getLocal: (id: string) => Promise<{ updatedAt?: number } | undefined>;
   writeLocal: (data: Record<string, unknown>) => Promise<void>;
   deleteLocal: (id: string) => Promise<void>;
 }
@@ -33,6 +35,7 @@ const REGISTRY: EntityCfg[] = [
     table: 'workouts',
     readLocal: async () =>
       (await db.workouts.toArray()).map((w) => ({ id: w.id, updatedAt: w.updatedAt ?? 0, data: w })),
+    getLocal: (id) => db.workouts.get(id),
     writeLocal: async (data) => {
       await db.workouts.put(data as unknown as Workout);
     },
@@ -45,6 +48,7 @@ const REGISTRY: EntityCfg[] = [
     table: 'programs',
     readLocal: async () =>
       (await db.programs.toArray()).map((p) => ({ id: p.id, updatedAt: p.updatedAt ?? 0, data: p })),
+    getLocal: (id) => db.programs.get(id),
     writeLocal: async (data) => {
       await db.programs.put(data as unknown as StoredProgram);
     },
@@ -61,6 +65,7 @@ const REGISTRY: EntityCfg[] = [
         updatedAt: e.updatedAt ?? 0,
         data: e,
       })),
+    getLocal: (id) => db.exercises.get(id),
     writeLocal: async (data) => {
       await db.exercises.put(data as unknown as Exercise);
     },
@@ -73,6 +78,7 @@ const REGISTRY: EntityCfg[] = [
     table: 'food_logs',
     readLocal: async () =>
       (await db.foodLogs.toArray()).map((e) => ({ id: e.id, updatedAt: e.updatedAt ?? 0, data: e })),
+    getLocal: (id) => db.foodLogs.get(id),
     writeLocal: async (data) => {
       await db.foodLogs.put(data as unknown as FoodLogEntry);
     },
@@ -85,6 +91,7 @@ const REGISTRY: EntityCfg[] = [
     table: 'foods',
     readLocal: async () =>
       (await db.foods.toArray()).map((f) => ({ id: f.id, updatedAt: f.updatedAt ?? 0, data: f })),
+    getLocal: (id) => db.foods.get(id),
     writeLocal: async (data) => {
       await db.foods.put(data as unknown as SavedFood);
     },
@@ -97,6 +104,7 @@ const REGISTRY: EntityCfg[] = [
     table: 'plans',
     readLocal: async () =>
       (await db.plans.toArray()).map((p) => ({ id: p.id, updatedAt: p.updatedAt ?? 0, data: p })),
+    getLocal: (id) => db.plans.get(id),
     writeLocal: async (data) => {
       await db.plans.put(data as unknown as WorkoutPlan);
     },
@@ -109,6 +117,7 @@ const REGISTRY: EntityCfg[] = [
     table: 'water_logs',
     readLocal: async () =>
       (await db.waterLogs.toArray()).map((w) => ({ id: w.id, updatedAt: w.updatedAt ?? 0, data: w })),
+    getLocal: (id) => db.waterLogs.get(id),
     writeLocal: async (data) => {
       await db.waterLogs.put(data as unknown as WaterLog);
     },
@@ -119,6 +128,9 @@ const REGISTRY: EntityCfg[] = [
 ];
 
 const cfgFor = (entity: SyncEntity) => REGISTRY.find((c) => c.entity === entity)!;
+
+/** Entity config by name — exported for the sync tests. */
+export const entityCfg = cfgFor;
 
 let channel: RealtimeChannel | null = null;
 let currentUserId: string | null = null;
@@ -263,6 +275,39 @@ export async function fullSync(userId: string): Promise<void> {
 // Realtime — apply inbound changes from other devices
 // --------------------------------------------------------------------------
 
+/**
+ * Apply one inbound realtime row, last-write-wins.
+ *
+ * Realtime echoes back this device's own writes, and rows can arrive out of
+ * order, so an inbound row is only authoritative if it is strictly newer than
+ * what we already hold. Writing blindly lets a stale copy of a record
+ * overwrite a fresher one — most visibly by turning a session the user just
+ * finished back into a running one, which then resumes the next morning.
+ */
+export async function applyInboundRecord(
+  cfg: EntityCfg,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const id = data.id;
+  if (typeof id !== 'string') return;
+  const inboundAt = Number(data.updatedAt ?? 0);
+
+  const local = await cfg.getLocal(id);
+  if (local && (local.updatedAt ?? 0) >= inboundAt) return; // ours is newer or identical
+
+  const tomb = await db.deletions.get(`${cfg.entity}:${id}`);
+  if (tomb && tomb.deletedAt >= inboundAt) return; // deleted here more recently
+
+  await cfg.writeLocal(data);
+}
+
+/** Apply an inbound profile row only if it is newer than the local copy. */
+export async function applyInboundProfile(profile: Profile): Promise<void> {
+  const local = await db.profile.get('me');
+  if (local && (local.updatedAt ?? 0) >= (profile.updatedAt ?? 0)) return;
+  await db.profile.put(profile);
+}
+
 export function startRealtime(userId: string): void {
   if (!supabase || channel) return;
   currentUserId = userId;
@@ -274,7 +319,7 @@ export function startRealtime(userId: string): void {
       { event: '*', schema: 'public', table: cfg.table, filter: `user_id=eq.${userId}` },
       (payload) => {
         const row = payload.new as { data?: Record<string, unknown> } | undefined;
-        if (row?.data) void cfg.writeLocal(row.data);
+        if (row?.data) void applyInboundRecord(cfg, row.data);
       },
     );
   }
@@ -293,7 +338,7 @@ export function startRealtime(userId: string): void {
     { event: '*', schema: 'public', table: 'profiles', filter: `user_id=eq.${userId}` },
     (payload) => {
       const row = payload.new as { data?: Profile } | undefined;
-      if (row?.data) void db.profile.put(row.data);
+      if (row?.data) void applyInboundProfile(row.data);
     },
   );
 

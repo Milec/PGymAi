@@ -143,13 +143,28 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   reloadFromDb: async () => {
-    const profile = (await db.profile.get('me')) ?? DEFAULT_PROFILE;
+    const stored = (await db.profile.get('me')) ?? DEFAULT_PROFILE;
+    const cur = get().profile;
+    // This runs on every tab focus, so keep the existing object identity when
+    // nothing changed rather than re-rendering every profile consumer.
+    const profile = (stored.updatedAt ?? 0) === (cur.updatedAt ?? 0) ? cur : stored;
     const a = get().active;
-    // Refresh the active session from the DB only if it still exists unfinished.
     let active = a;
     if (a) {
       const fresh = await db.workouts.get(a.id);
-      active = fresh && fresh.finishedAt === undefined ? fresh : a;
+      if (!fresh) {
+        // Gone from the DB. Only drop it if it was actually deleted (another
+        // tab or device discarded it) — a brand-new session may not have hit
+        // IndexedDB yet.
+        const tomb = await db.deletions.get(`workouts:${a.id}`);
+        if (tomb) active = null;
+      } else if (fresh.finishedAt !== undefined) {
+        // Finished elsewhere — never keep running a session the DB calls done,
+        // or the next edit will stamp it and un-finish it everywhere.
+        active = null;
+      } else if ((fresh.updatedAt ?? 0) >= (a.updatedAt ?? 0)) {
+        active = fresh;
+      }
     }
     applyTheme(profile.theme ?? DEFAULT_THEME);
     set({ profile, active });
@@ -291,6 +306,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       .filter((e) => e.sets.length > 0);
     const finished: Workout = { ...a, entries, finishedAt: Date.now() };
     await persistWorkout(finished, true);
+
+    // Read it back before tearing down the session. If the write didn't land,
+    // clearing `active` here would lose the whole workout with no way back —
+    // better to leave the session running and let the caller report it.
+    const saved = await db.workouts.get(finished.id);
+    if (!saved || saved.finishedAt === undefined) {
+      throw new Error('Could not save this session — it is still open, try Finish again.');
+    }
 
     // Auto-log a 1RM PR for any exercise done this session that has none yet,
     // deriving it from the best estimated 1RM across the sets they just did.

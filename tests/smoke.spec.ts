@@ -146,6 +146,29 @@ test('bodyweight set logs as complete with no weight', async ({ page }) => {
   await expect(page.getByText(/BW/).first()).toBeVisible();
 });
 
+test('a finished session stays finished across a reload', async ({ page }) => {
+  await freshApp(page);
+  await page.goto('/#/workout');
+  await page.getByRole('button', { name: /start freestyle/i }).click();
+  await page.getByRole('button', { name: /add exercise/i }).click();
+  await page.getByPlaceholder('Search…').fill('Push-Up');
+  await page.getByRole('button', { name: /^Push-Up/ }).first().click();
+  await page.locator('input[inputmode="numeric"]').first().fill('12');
+  await page.getByLabel('Toggle complete').first().click();
+
+  // Finish immediately, inside the window where a queued cloud push of the
+  // still-running session could otherwise land after the finished one.
+  await page.getByRole('button', { name: /finish session/i }).click();
+  await expect(page).toHaveURL(/#\/progress/);
+
+  // Reopening the app the next day must offer a fresh start, not yesterday's
+  // session picked back up.
+  await page.reload();
+  await page.goto('/#/workout');
+  await expect(page.getByRole('button', { name: /start freestyle/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /finish session/i })).toHaveCount(0);
+});
+
 test('per-set percent auto-fills weight rounded to 2.5', async ({ page }) => {
   await freshApp(page);
   // Set a 150 kg PR for Back Squat.
