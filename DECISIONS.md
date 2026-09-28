@@ -272,15 +272,21 @@ Verified locally against the production build (`pnpm preview`):
 
 - `pnpm build` — succeeds, TypeScript strict, **0 type errors**.
 - `pnpm lint` — ESLint **clean** (`--max-warnings=0`).
-- `pnpm test` — **48 Vitest unit tests pass** (e1RM, progression, standards,
-  import validation, analytics, units).
-- `pnpm e2e` — **6 Playwright smoke tests pass** (boot, all routes, library
-  search, full logging flow, import validation, program follow).
-- **Lighthouse** (Chromium, production preview): Performance **93**,
+- `pnpm test` — **185 Vitest unit tests pass** (e1RM, progression, standards,
+  import validation, analytics, units, nutrition, fuel stats, sync merge and
+  realtime gating, backup round-trip, program progress, rest alarm).
+- `pnpm e2e` — **28 Playwright tests pass** (boot, all routes, library search,
+  full logging flow, import validation, program follow and progress, planner,
+  fuel/hydration/trends, backup restore, mobile overflow).
+- `pnpm e2e:offline` — **1 Playwright test** against the production build:
+  with the network cut, the app reloads, every route renders, and a session
+  can still be logged and read back. This used to be a manual step in this
+  list; it is now automated because it guards a headline claim.
+- **Lighthouse** (Chromium, production preview): Performance **91**,
   Accessibility **100**, Best-Practices **100**.
 - **PWA**: valid manifest (standalone, maskable icon, theme/bg `#05070f`),
   service worker registers and activates, and the app + IndexedDB data remain
-  **fully usable offline** (verified by reloading with the network disabled).
+  **fully usable offline**.
 - Screenshots of every screen at 390×844 and 1440×900 in
   `artifacts/screenshots/`.
 
@@ -539,12 +545,31 @@ program card shows `n/total done` and its button reads Continue. The unused
 `programProgress` Dexie table stays empty and unreferenced — the derived
 approach needs no schema.
 
+**Finish was unreachable for anyone who didn't tap the check circles.** The
+button was gated on the count of *completed* sets, but `finishWorkout` files
+every set carrying a number, ticked or not. Fill the grid in, skip the
+circles, and Finish sat greyed out with no explanation and no way forward
+except discarding the session. It is now gated on what would actually be
+saved, and says what is missing when there is nothing.
+
+**Auto macro targets never moved.** `nutrition.auto` was stored but only ever
+read to pick a tab in the calculator: the targets themselves were a snapshot
+frozen at the bodyweight you had when you first opened it. Cutting or bulking
+— the entire reason the calculator exists — left you chasing numbers computed
+for a body you no longer had, while the sibling hydration target updated live
+off the same profile. `effectiveMacroTargets()` now derives auto targets from
+current body stats at every read, falling back to the stored snapshot when
+height or age is missing. Manual overrides are returned untouched.
+
 Smaller items from the same pass: auto-fill overwrote **completed** sets,
 rewriting what was actually lifted (it now fills only what's left, and says how
 many); *Erase Everything* left the rest-timer and collapsed-exercise keys in
 `localStorage`, resurrecting a countdown for a deleted session; `useNow` kept a
-1 s interval running while the tab was hidden; and the set-row inputs had no
-accessible names, so a screen reader announced four bare spinbuttons per row.
+1 s interval running while the tab was hidden; and the set-row inputs, the two
+exercise searches, the food search and the per-exercise notes field had no
+accessible names, so a screen reader announced bare spinbuttons and textboxes.
+A sweep of every route at 390 px found no horizontal overflow and no other
+unlabelled control, and Lighthouse accessibility stays at 100.
 
 ### Workout Planner (v8)
 

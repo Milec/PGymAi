@@ -139,3 +139,55 @@ test('auto-fill only touches sets that are still to be done', async ({ page }) =
   await expect(page.getByLabel(/^Set 1 weight in kg$/)).toHaveValue('60');
   await expect(page.getByLabel(/^Set 2 weight in kg$/)).toHaveValue('80');
 });
+
+test('a session can be finished from logged sets that were never ticked', async ({ page }) => {
+  await freshApp(page);
+  await page.goto('/#/workout');
+  await page.getByRole('button', { name: /start freestyle/i }).click();
+  await page.getByRole('button', { name: /add exercise/i }).click();
+  await page.getByPlaceholder('Search…').fill('Back Squat');
+  await page.getByRole('button', { name: /^Back Squat/ }).first().click();
+
+  // An empty grid has nothing worth filing, and says so.
+  await expect(page.getByRole('button', { name: /finish session/i })).toBeDisabled();
+  await expect(page.getByText(/enter a weight or rep count/i)).toBeVisible();
+
+  // Log the set but never tap the completion circle.
+  await page.getByLabel(/^Set 1 weight in kg$/).fill('100');
+  await page.getByLabel(/^Set 1 reps$/).fill('5');
+
+  await expect(page.getByText(/enter a weight or rep count/i)).toHaveCount(0);
+  await page.getByRole('button', { name: /finish session/i }).click();
+  await expect(page).toHaveURL(/#\/progress/);
+
+  // And the set really was saved.
+  await page.goto('/#/history');
+  await page.getByText(/Freestyle Session/).first().click();
+  await expect(page.getByText(/Back Squat/).first()).toBeVisible();
+});
+
+test('auto macro targets follow a bodyweight change', async ({ page }) => {
+  await freshApp(page);
+
+  // Calibrate targets from body stats at 90 kg.
+  await page.goto('/#/profile');
+  await page.getByLabel(/^Age/i).fill('30');
+  await page.getByLabel(/^Bodyweight/i).fill('90');
+  await page.getByLabel(/^Height/i).fill('180');
+  await page.getByRole('button', { name: /^male$/i }).click();
+
+  await page.goto('/#/fuel');
+  await page.getByRole('button', { name: /calibrate|targets|goals/i }).first().click();
+  await page.getByRole('button', { name: /apply|save/i }).first().click();
+
+  const kcalAt90 = await page.getByText(/\/\s*\d+\s*kcal/).first().innerText();
+
+  // Drop 10 kg — the plan working is exactly when targets must move.
+  await page.goto('/#/profile');
+  await page.getByLabel(/^Bodyweight/i).fill('80');
+  await page.getByLabel(/^Bodyweight/i).blur();
+
+  await page.goto('/#/fuel');
+  const kcalAt80 = await page.getByText(/\/\s*\d+\s*kcal/).first().innerText();
+  expect(kcalAt80).not.toBe(kcalAt90);
+});

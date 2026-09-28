@@ -10,6 +10,7 @@ import {
   dateKey,
   macrosForAmount,
   waterTargetMl,
+  effectiveMacroTargets,
 } from '@/lib/nutrition';
 import { persistWaterLog } from '@/sync/local';
 import { useAppStore } from '@/store/useAppStore';
@@ -24,7 +25,7 @@ export function FuelTodayPanel() {
   const entries = useDayFoodLog(today);
   const water = useDayWater(today);
 
-  const targets = profile.nutrition?.targets ?? null;
+  const targets = effectiveMacroTargets(profile.nutrition, profile);
   const totals = entries.reduce(
     (acc, e) => addMacros(acc, macrosForAmount(e.per100, e.amountG)),
     EMPTY_MACROS,

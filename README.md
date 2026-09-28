@@ -229,8 +229,9 @@ Quality gates:
 
 ```bash
 pnpm lint           # ESLint (zero warnings)
-pnpm test           # Vitest unit tests (e1RM, progression, standards, import, analytics, units)
+pnpm test           # Vitest unit tests (e1RM, progression, standards, import, analytics, units, nutrition, sync, backup)
 pnpm e2e            # Playwright smoke tests (boots its own dev server)
+pnpm e2e:offline    # Playwright offline PWA check against the production build
 pnpm shots          # regenerate screenshots into artifacts/screenshots/
 ```
 

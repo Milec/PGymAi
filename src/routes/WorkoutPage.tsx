@@ -84,6 +84,13 @@ function ActiveSession() {
     (v, e) => v + e.sets.reduce((sv, s) => sv + (s.completed ? s.weightKg * s.reps : 0), 0),
     0,
   );
+  // What Finish would actually file. Gating on completed sets instead would
+  // strand anyone who filled the grid in but never tapped the check circles —
+  // finishWorkout keeps every set carrying a number, ticked or not.
+  const savableSets = active.entries.reduce(
+    (n, e) => n + e.sets.filter((s) => s.reps > 0 || s.weightKg > 0).length,
+    0,
+  );
 
   const finish = async () => {
     try {
@@ -147,13 +154,25 @@ function ActiveSession() {
       </div>
 
       <div className="mt-6 flex gap-3">
-        <HudButton variant="accent" className="flex-1" onClick={finish} disabled={totalSets === 0}>
+        <HudButton
+          variant="accent"
+          className="flex-1"
+          onClick={finish}
+          disabled={savableSets === 0}
+          title={savableSets === 0 ? 'Log a weight or rep count on at least one set first.' : undefined}
+        >
           <IconCheck size={16} /> Finish Session
         </HudButton>
         <HudButton variant="danger" sheen={false} onClick={discard}>
           Discard
         </HudButton>
       </div>
+
+      {savableSets === 0 && active.entries.length > 0 && (
+        <p className="mt-2 text-center text-[11px] text-[var(--ink-faint)]">
+          Enter a weight or rep count on at least one set to finish.
+        </p>
+      )}
 
       <ExercisePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={addEntry} />
     </div>
@@ -319,6 +338,7 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
         value={entry.notes ?? ''}
         onChange={(e) => setEntryNotes(entry.id, e.target.value)}
         placeholder="Notes…"
+        aria-label="Exercise notes"
         className="mono mt-3 w-full rounded-[3px] border border-[var(--line)] bg-transparent px-2 py-1.5 text-[12px] text-[var(--ink-dim)] outline-none focus:border-[var(--cyan)]"
       />
         </>

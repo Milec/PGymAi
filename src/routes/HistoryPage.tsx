@@ -20,6 +20,7 @@ import {
   dateKey,
   macrosForAmount,
   type MacroSet,
+  effectiveMacroTargets,
 } from '@/lib/nutrition';
 import { formatDuration } from '@/lib/time';
 import { formatWeight, fromKg, type Unit } from '@/lib/units';
@@ -236,7 +237,7 @@ export function HistoryPage() {
       {selectedDay && selFuelKey && selFood.length > 0 && (
         <FuelDayPanel
           entries={selFood}
-          targetKcal={profile.nutrition?.targets.kcal}
+          targetKcal={effectiveMacroTargets(profile.nutrition, profile)?.kcal}
           onOpen={() => navigate(`/fuel?date=${selFuelKey}`)}
         />
       )}
