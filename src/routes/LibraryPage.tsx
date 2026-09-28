@@ -55,6 +55,7 @@ export function LibraryPage() {
       <HudPanel className="mb-4 p-4">
         <HudInput
           placeholder="Search exercises…"
+          aria-label="Search exercises"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />

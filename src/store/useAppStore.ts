@@ -4,11 +4,26 @@ import { DEFAULT_PROFILE, ensureSeeded } from '@/db/seed';
 import type { LoggedSet, Profile, Workout, WorkoutEntry } from '@/db/types';
 import { estimate1rm } from '@/lib/e1rm';
 import { uid } from '@/lib/id';
+import { primeAlertAudio } from '@/lib/alert';
 import { applyTheme, DEFAULT_THEME, type ThemeName } from '@/lib/theme';
 import { persistProfile, persistWorkout, removeWorkout } from '@/sync/local';
 
 const REST_KEY = 'stride.restEndsAt';
 const COLLAPSE_KEY = 'stride.collapsedEntries';
+
+/**
+ * Drop the per-device UI state the store keeps outside IndexedDB. Called when
+ * the database is erased, so a wipe doesn't leave a rest countdown running for
+ * a session that no longer exists.
+ */
+export function clearLocalUiState(): void {
+  try {
+    localStorage.removeItem(REST_KEY);
+    localStorage.removeItem(COLLAPSE_KEY);
+  } catch {
+    // Storage can be unavailable (private mode); nothing to clean up then.
+  }
+}
 
 function loadCollapsedEntries(): string[] {
   try {
@@ -345,6 +360,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const dur = sec ?? get().profile.restDefaultSec;
     const endsAt = Date.now() + dur * 1000;
     localStorage.setItem(REST_KEY, String(endsAt));
+    // Starting a rest is always a tap, and a tap is the only thing that can
+    // unlock audio playback — by the time the countdown ends there is no
+    // gesture left to borrow.
+    if (get().profile.restAlert !== false) primeAlertAudio();
     set({ restEndsAt: endsAt, restDurationSec: dur });
   },
 

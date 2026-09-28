@@ -20,12 +20,13 @@ import {
   shiftDateKey,
   type MacroSet,
   type MealId,
+  effectiveMacroTargets,
 } from '@/lib/nutrition';
 import { useAppStore } from '@/store/useAppStore';
 
 export function FuelPage() {
   const profile = useAppStore((s) => s.profile);
-  const targets = profile.nutrition?.targets ?? null;
+  const targets = effectiveMacroTargets(profile.nutrition, profile);
 
   const today = dateKey();
   // Deep link from the Activity Log calendar: /fuel?date=YYYY-MM-DD.

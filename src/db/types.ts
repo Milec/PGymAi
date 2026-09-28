@@ -67,6 +67,8 @@ export interface Profile {
   theme?: ThemeName;
   /** Manual personal-record 1RM per exercise id, in kg. */
   prs?: Record<string, number>;
+  /** Beep + vibrate when a rest timer ends. Undefined means on. */
+  restAlert?: boolean;
   /** Height in cm — used by the nutrition target calculator. */
   heightCm?: number;
   /** Macro targets + calculator inputs for the Fuel page. */

@@ -115,6 +115,11 @@ export function macroTargets(
 
 /** Everything the calculator needs + the resulting targets, kept on the profile. */
 export interface NutritionSettings {
+  /**
+   * The targets as last computed or typed. When `auto` is set these are a
+   * cache: `effectiveMacroTargets` recomputes from current body stats and only
+   * falls back to this snapshot when it can't.
+   */
   targets: MacroSet;
   /** true → targets came from the calculator; false → manual override. */
   auto: boolean;
@@ -123,6 +128,40 @@ export interface NutritionSettings {
   rateKgPerWeek: number;
   proteinPerKg: number;
   fatPercent: number;
+}
+
+/** The body stats the calculator needs, as they exist on the profile. */
+export interface BodyStats {
+  sex: Sex | 'unspecified';
+  bodyweightKg: number;
+  heightCm?: number;
+  age?: number;
+}
+
+/**
+ * Compute the macro targets in force right now.
+ *
+ * Auto targets are *derived*, not stored: cutting and bulking are the whole
+ * point of the calculator, so a target frozen at the bodyweight you had when
+ * you first opened it goes wrong exactly as the plan starts working. This
+ * mirrors how the hydration target already tracks bodyweight. A manual
+ * override is returned untouched, and an auto setting whose inputs have gone
+ * missing (no height or age) falls back to the last computed snapshot rather
+ * than showing nothing.
+ */
+export function effectiveMacroTargets(
+  settings: NutritionSettings | undefined,
+  body: BodyStats,
+): MacroSet | null {
+  if (!settings) return null;
+  if (!settings.auto) return settings.targets;
+  const { bodyweightKg, heightCm, age } = body;
+  if (!(bodyweightKg > 0) || !(heightCm && heightCm > 0) || !(age && age > 0)) {
+    return settings.targets;
+  }
+  const bmr = bmrMifflinStJeor(body.sex, bodyweightKg, heightCm, age);
+  const kcal = goalCalories(tdee(bmr, settings.activity), settings.goal, settings.rateKgPerWeek);
+  return macroTargets(kcal, bodyweightKg, settings.proteinPerKg, settings.fatPercent);
 }
 
 // ---------------------------------------------------------------------------

@@ -57,7 +57,12 @@ export function buildProgramDay(
     }
     const currentE1rm = bestE1rm(workouts, ex.id) || undefined;
     const last = lastPerf(workouts, ex.id);
-    const suggestion = suggestLoad(pex, { unit: profile.units, currentE1rmKg: currentE1rm, last });
+    const suggestion = suggestLoad(pex, {
+      unit: profile.units,
+      programUnit: program.units,
+      currentE1rmKg: currentE1rm,
+      last,
+    });
 
     const targetText = targetRepsText(pex);
     const intensityNote = pex.intensity

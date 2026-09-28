@@ -9,6 +9,7 @@ import {
   fillWaterGaps,
   filterPeriod,
   filterWaterPeriod,
+  MAX_GAP_FILL_DAYS,
 } from './fuelStats';
 
 function entry(date: string, kcalPer100: number, proteinPer100: number, amountG = 100): FoodLogEntry {
@@ -104,5 +105,30 @@ describe('fillGaps', () => {
     expect(days[0].date).toBe('2026-07-02');
     expect(days[5].logged).toBe(true);
     expect(days[6].logged).toBe(false); // today, nothing logged
+  });
+});
+
+describe('fillGaps over long histories', () => {
+  it('keeps the most recent days when history exceeds the cap', () => {
+    // Three years of logs, viewed as "All time".
+    const days = [
+      { date: '2023-01-01', macros: { kcal: 1, proteinG: 0, carbsG: 0, fatG: 0 }, logged: true },
+      { date: '2026-01-01', macros: { kcal: 2, proteinG: 0, carbsG: 0, fatG: 0 }, logged: true },
+    ];
+    const out = fillGaps(days, 0);
+    expect(out.length).toBeLessThanOrEqual(MAX_GAP_FILL_DAYS);
+    // The newest logged day must survive — it is the one the user cares about.
+    expect(out[out.length - 1].date).toBe('2026-01-01');
+    expect(out[out.length - 1].macros.kcal).toBe(2);
+  });
+
+  it('still spans the whole history when it fits under the cap', () => {
+    const days = [
+      { date: '2026-01-01', macros: { kcal: 1, proteinG: 0, carbsG: 0, fatG: 0 }, logged: true },
+      { date: '2026-01-04', macros: { kcal: 2, proteinG: 0, carbsG: 0, fatG: 0 }, logged: true },
+    ];
+    const out = fillGaps(days, 0);
+    expect(out.map((d) => d.date)).toEqual(['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04']);
+    expect(out[1].logged).toBe(false);
   });
 });

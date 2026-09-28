@@ -5,6 +5,7 @@ import {
   bmrMifflinStJeor,
   dateKey,
   dateKeyLabel,
+  effectiveMacroTargets,
   goalCalories,
   macroTargets,
   macrosForAmount,
@@ -262,5 +263,49 @@ describe('barcode variants', () => {
     expect(barcodeVariants('0840229302093')).toEqual(['0840229302093', '840229302093']);
     expect(barcodeVariants('840229302093')).toEqual(['840229302093', '0840229302093']);
     expect(barcodeVariants('12345678')).toEqual(['12345678']); // EAN-8 untouched
+  });
+});
+
+describe('effectiveMacroTargets', () => {
+  const settings = {
+    targets: { kcal: 2500, proteinG: 150, carbsG: 280, fatG: 80 },
+    auto: true,
+    activity: 'moderate' as const,
+    goal: 'cut' as const,
+    rateKgPerWeek: 0.5,
+    proteinPerKg: 1.8,
+    fatPercent: 30,
+  };
+  const body = { sex: 'male' as const, bodyweightKg: 90, heightCm: 180, age: 30 };
+
+  it('returns null without settings', () => {
+    expect(effectiveMacroTargets(undefined, body)).toBeNull();
+  });
+
+  it('returns a manual override untouched', () => {
+    const manual = { ...settings, auto: false };
+    expect(effectiveMacroTargets(manual, body)).toEqual(settings.targets);
+  });
+
+  it('recomputes auto targets from current bodyweight', () => {
+    const heavy = effectiveMacroTargets(settings, body)!;
+    const lighter = effectiveMacroTargets(settings, { ...body, bodyweightKg: 80 })!;
+    // Cutting works: a lighter athlete gets a smaller allowance and less protein.
+    expect(lighter.kcal).toBeLessThan(heavy.kcal);
+    expect(lighter.proteinG).toBeLessThan(heavy.proteinG);
+    // And neither is the stale snapshot.
+    expect(heavy.kcal).not.toBe(settings.targets.kcal);
+  });
+
+  it('matches the calculator it replaces', () => {
+    const bmr = bmrMifflinStJeor('male', 90, 180, 30);
+    const expected = macroTargets(goalCalories(tdee(bmr, 'moderate'), 'cut', 0.5), 90, 1.8, 30);
+    expect(effectiveMacroTargets(settings, body)).toEqual(expected);
+  });
+
+  it('falls back to the stored snapshot when height or age is missing', () => {
+    expect(effectiveMacroTargets(settings, { ...body, heightCm: undefined })).toEqual(settings.targets);
+    expect(effectiveMacroTargets(settings, { ...body, age: undefined })).toEqual(settings.targets);
+    expect(effectiveMacroTargets(settings, { ...body, bodyweightKg: 0 })).toEqual(settings.targets);
   });
 });

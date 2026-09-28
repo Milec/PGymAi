@@ -4,6 +4,9 @@ const PORT = 4188;
 
 export default defineConfig({
   testDir: './tests',
+  // The offline suite needs the production build + service worker; it has its
+  // own config (playwright.offline.config.ts) and port.
+  testIgnore: '**/offline.spec.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

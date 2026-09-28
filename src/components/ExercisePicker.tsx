@@ -27,7 +27,13 @@ export function ExercisePicker({ open, onClose, onPick }: Props) {
 
   return (
     <Modal open={open} onClose={onClose} title="Add Exercise" wide>
-      <HudInput placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+      <HudInput
+        placeholder="Search…"
+        aria-label="Search exercises"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        autoFocus
+      />
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
         <Chip active={muscle === 'all'} onClick={() => setMuscle('all')}>
           All

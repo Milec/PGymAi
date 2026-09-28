@@ -57,7 +57,7 @@ test('can log a freestyle workout end to end', async ({ page }) => {
   const reps = page.locator('input[inputmode="numeric"]').first();
   await weight.fill('100');
   await reps.fill('5');
-  await page.getByLabel('Toggle complete').first().click();
+  await page.getByLabel(/^Set 1 mark complete$/).click();
 
   // e1RM readout should now appear (~116kg for 100x5 Epley).
   await expect(page.getByText(/EST 1RM/i)).toBeVisible();
@@ -118,7 +118,7 @@ test('library PR can be set and drives auto-fill in a workout', async ({ page })
   await page.getByRole('button', { name: /auto-fill weight/i }).click();
   const pct = page.locator('input[inputmode="numeric"]').first();
   await pct.fill('100');
-  await page.getByRole('button', { name: /fill all sets/i }).click();
+  await page.getByRole('button', { name: /fill \d+ remaining set/i }).click();
 
   const firstWeight = page.locator('input[inputmode="decimal"]').first();
   await expect(firstWeight).toHaveValue('150');
@@ -134,7 +134,7 @@ test('bodyweight set logs as complete with no weight', async ({ page }) => {
 
   // Reps only — no weight entered.
   await page.locator('input[inputmode="numeric"]').first().fill('15');
-  await page.getByLabel('Toggle complete').first().click();
+  await page.getByLabel(/^Set 1 mark complete$/).click();
 
   // Sets Done registers the completed bodyweight set, so Finish is enabled.
   await page.getByRole('button', { name: /finish session/i }).click();
@@ -154,7 +154,7 @@ test('a finished session stays finished across a reload', async ({ page }) => {
   await page.getByPlaceholder('Search…').fill('Push-Up');
   await page.getByRole('button', { name: /^Push-Up/ }).first().click();
   await page.locator('input[inputmode="numeric"]').first().fill('12');
-  await page.getByLabel('Toggle complete').first().click();
+  await page.getByLabel(/^Set 1 mark complete$/).click();
 
   // Finish immediately, inside the window where a queued cloud push of the
   // still-running session could otherwise land after the finished one.

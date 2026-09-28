@@ -24,7 +24,7 @@ import {
   filterPeriod,
   filterWaterPeriod,
 } from '@/lib/fuelStats';
-import { waterTargetMl } from '@/lib/nutrition';
+import { effectiveMacroTargets, waterTargetMl } from '@/lib/nutrition';
 import { useAppStore } from '@/store/useAppStore';
 
 const tooltipStyle: React.CSSProperties = {
@@ -48,7 +48,7 @@ export function FuelTrendsPage() {
   const entries = useAllFoodLogs();
   const waterLogs = useAllWaterLogs();
   const profile = useAppStore((s) => s.profile);
-  const targets = profile.nutrition?.targets ?? null;
+  const targets = effectiveMacroTargets(profile.nutrition, profile);
   const [period, setPeriod] = useState<number>(30);
 
   const allDays = useMemo(() => dailyTotals(entries), [entries]);

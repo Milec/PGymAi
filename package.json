@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "STRIDE — offline-first holographic strength-tracking PWA",
+  "description": "STRIDE \u2014 offline-first holographic strength-tracking PWA",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "e2e:offline": "playwright test --config=playwright.offline.config.ts",
     "shots": "node scripts/screenshots.mjs",
     "lighthouse": "node scripts/lh.mjs"
   },
