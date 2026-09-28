@@ -1,7 +1,47 @@
+import { useEffect, useRef } from 'react';
 import { HudButton, HudPanel, Readout } from '@/components/hud';
 import { useNow } from '@/hooks/useNow';
+import { playRestDoneAlert } from '@/lib/alert';
 import { formatClock } from '@/lib/time';
 import { useAppStore } from '@/store/useAppStore';
+
+/**
+ * How late an expiry may be noticed and still be worth announcing. Coming back
+ * to the app long after a rest ended should be silent — a beep for something
+ * that finished ten minutes ago is just noise.
+ */
+const ALERT_GRACE_MS = 10_000;
+
+/**
+ * Fires the end-of-rest alert. Rendered app-wide (not inside the timer panel)
+ * so the alert still lands when the user has navigated to another screen
+ * mid-rest. Renders nothing.
+ *
+ * The alert is scheduled as a single timeout at the exact expiry rather than
+ * polled, so it stays accurate even while background tabs have their intervals
+ * throttled.
+ */
+export function RestAlarm() {
+  const restEndsAt = useAppStore((s) => s.restEndsAt);
+  const enabled = useAppStore((s) => s.profile.restAlert !== false);
+  const firedFor = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !restEndsAt || firedFor.current === restEndsAt) return;
+    const delay = restEndsAt - Date.now();
+    if (delay < -ALERT_GRACE_MS) {
+      firedFor.current = restEndsAt; // already long over — don't announce it
+      return;
+    }
+    const id = setTimeout(() => {
+      firedFor.current = restEndsAt;
+      playRestDoneAlert();
+    }, Math.max(0, delay));
+    return () => clearTimeout(id);
+  }, [restEndsAt, enabled]);
+
+  return null;
+}
 
 /** Shared control buttons — adjust an active rest, or start a preset. */
 function RestControls({ active, size = 'md' }: { active: boolean; size?: 'sm' | 'md' }) {

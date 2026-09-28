@@ -24,16 +24,16 @@ space-navy field, luminous scanlines, and instrument-panel numeric readouts.
 | Area | What it does |
 | --- | --- |
 | **Flight Deck (Dashboard)** | App-wide overview: weekly volume, session streak, muscle-group balance radar, recent estimated-1RM PRs, and a **FUEL TODAY** panel — calories + macro bars vs targets, hydration progress with a one-tap glass add — linking into Fuel. Start/resume a session. |
-| **Workout Logging** | Freestyle or program-driven sessions. Log weight / reps / RPE / notes per set, mark sets complete. Per-set **rest timer** (auto-starts on completion) + a running **workout duration timer**; both survive backgrounding via persisted timestamps. Editable, deletable sets. **Auto-fill weight** from your 1RM by **%1RM** or **RPE + reps**. |
+| **Workout Logging** | Freestyle or program-driven sessions. Log weight / reps / RPE / notes per set, mark sets complete. Per-set **rest timer** (auto-starts on completion) that **beeps and vibrates when it hits zero**, plus a running **workout duration timer**; both survive backgrounding via persisted timestamps. Editable, deletable sets. **Auto-fill weight** from your 1RM by **%1RM** or **RPE + reps** — it fills only the sets you haven't logged yet. |
 | **Planner** | Build a workout **before** you train — exercises, sets, target reps & weight — right on the Workout tab. **Save** plans by name, **edit/reorder/delete** them, and **launch** one any day: sets are pre-created with weights filled and target reps as placeholders. Plans sync with Cloud Sync. |
 | **Exercise Library** | 162 preloaded exercises with muscle groups, equipment, movement pattern, and category. Search + filter by muscle/equipment. Add custom exercises. **Set a 1RM PR per lift** — used to auto-fill working weights. |
 | **Progress** | Per-exercise charts: estimated 1RM over time (Epley or Brzycki), top set, session volume, and a PR timeline. **Settable period** (3M/6M/1Y/All); the dashboard volume chart has a 4w–1y window. |
 | **Strength Standards** | The differentiator — see below. |
-| **Programs** | Import multi-week programs (file upload or paste-JSON, Zod-validated), follow week/day with adaptive load suggestions, export any program back to JSON. Ships 3 example programs. |
+| **Programs** | Import multi-week programs (file upload or paste-JSON, Zod-validated), follow week/day with adaptive load suggestions, export any program back to JSON. **Progress is tracked from your training log** — finished days are ticked off, the next one is flagged, and reopening a program jumps to the week you're up to. Ships 3 example programs. |
 | **Activity Log** | Browse every finished session (date, duration, volume, sets, lifts) and expand any one for full per-exercise set detail. A month **calendar** shows training days (cyan) *and* days with meals logged (violet dot); tap a day to see that day's sessions **and** its meal breakdown, with a one-tap jump into Fuel. |
 | **Fuel (Nutrition)** | MyFitnessPal-style daily food journal divided into meals, with calorie + protein/carb/fat bars against your targets. **Auto-calculated goals** (Mifflin-St Jeor from weight/height/age/sex, training frequency, and cut/maintain/bulk rate) or manual targets. Log food by **searching two live catalogues** — Open Food Facts plus USDA FoodData Central's US branded-foods database — **scanning a barcode** (native BarcodeDetector with a lazy-loaded ZXing fallback; both catalogues tried, with UPC/EAN leading-zero variants), re-logging from **My Foods**, or creating custom foods. Amounts are **servings × serving size** (labelled serving, 100 g, exact grams, or oz), MyFitnessPal-style. A **hydration tracker** with an auto-calculated water target (~33 ml/kg bodyweight + activity bump, or manual) offers one-tap +250 ml/+500 ml/+1 L logging with undo. Journal, My Foods, and water logs back up via Cloud Sync. |
 | **Nutrition Trends** | Derived metrics over a **settable period** (1W/2W/1M/3M/All): average kcal / protein / carbs / fat / water per logged day vs your targets, plus daily calorie, protein, and **water** charts with target reference lines. Averages skip unlogged days. |
-| **Profile** | Sex, bodyweight, height, age, kg/lb units (toggles everywhere), default rest time, data export/erase, and a "Load Sample Data" button. **Theme picker**: Starship HUD (default), Dark Night, Light, and Bubblegum. |
+| **Profile** | Sex, bodyweight, height, age, kg/lb units (toggles everywhere), default rest time, end-of-rest alert toggle, **JSON backup export + restore**, erase, and a "Load Sample Data" button. **Theme picker**: Starship HUD (default), Dark Night, Light, and Bubblegum. |
 
 Navigation is an **expandable side menu**: collapsible TRAINING / NUTRITION
 groups on the desktop rail, and on mobile a slim bottom bar (Deck · Lift ·
@@ -167,6 +167,20 @@ running the schema, the Cloud Sync panel tells you the tables are missing.
 **Limitations**: last-write-wins resolves conflicts at the record (whole
 workout/program) level, not field-by-field; the seeded exercise library is
 identical for everyone and isn't synced (only your custom exercises are).
+
+## Backup & Restore (no account needed)
+
+**Profile → Export All Data** writes a dated JSON file holding your profile,
+sessions, programs, custom exercises, workout plans, food journal, saved foods,
+and water logs — everything cloud sync would carry, minus the seeded exercise
+library (identical in every install). **Restore Backup** reads one back.
+
+Restore **merges by record id**: anything in the file overwrites the local copy
+of the same record, and anything only on this device is kept. It is safe to run
+onto a populated install; use *Erase Everything* first if you want a clean
+replace. Restored records are re-stamped as the newest version, so a restore
+also wins against whatever is in your cloud account rather than being undone by
+the next sync.
 
 ## Food Catalogue Sources (optional USDA key)
 

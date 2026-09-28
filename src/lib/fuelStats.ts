@@ -81,16 +81,39 @@ export function averageWaterMl(days: WaterDay[]): number | null {
   return logged.reduce((s, d) => s + d.ml, 0) / logged.length;
 }
 
+/**
+ * Longest span a gap-filled series may cover. A chart with a point per day gets
+ * unreadable (and slow) long before this; the cap also stops a malformed date
+ * key from spinning the fill loop forever.
+ */
+export const MAX_GAP_FILL_DAYS = 730;
+
+/**
+ * Resolve the [start, end] day range a gap fill should cover. The window is
+ * anchored to its END so that capping a very long history drops the oldest
+ * days — showing a two-year-old chart with today missing would be worse than
+ * showing a shorter one.
+ */
+function gapWindow(
+  firstLogged: string,
+  lastLogged: string,
+  periodDays: number,
+  today: string,
+): { start: string; end: string } {
+  const end = periodDays > 0 ? today : lastLogged;
+  const wanted = periodDays > 0 ? shiftDateKey(today, -(periodDays - 1)) : firstLogged;
+  const earliest = shiftDateKey(end, -(MAX_GAP_FILL_DAYS - 1));
+  return { start: wanted > earliest ? wanted : earliest, end };
+}
+
 /** Continuous-axis fill for water days (mirrors fillGaps). */
 export function fillWaterGaps(days: WaterDay[], periodDays: number, today: string = dateKey()): WaterDay[] {
   if (days.length === 0) return [];
   const byDate = new Map(days.map((d) => [d.date, d]));
-  const start = periodDays > 0 ? shiftDateKey(today, -(periodDays - 1)) : days[0].date;
-  const end = periodDays > 0 ? today : days[days.length - 1].date;
+  const { start, end } = gapWindow(days[0].date, days[days.length - 1].date, periodDays, today);
   const out: WaterDay[] = [];
   for (let d = start; d <= end; d = shiftDateKey(d, 1)) {
     out.push(byDate.get(d) ?? { date: d, ml: 0, logged: false });
-    if (out.length > 400) break; // hard stop against malformed keys
   }
   return out;
 }
@@ -103,12 +126,10 @@ export function fillWaterGaps(days: WaterDay[], periodDays: number, today: strin
 export function fillGaps(days: DayTotal[], periodDays: number, today: string = dateKey()): DayTotal[] {
   if (days.length === 0) return [];
   const byDate = new Map(days.map((d) => [d.date, d]));
-  const start = periodDays > 0 ? shiftDateKey(today, -(periodDays - 1)) : days[0].date;
-  const end = periodDays > 0 ? today : days[days.length - 1].date;
+  const { start, end } = gapWindow(days[0].date, days[days.length - 1].date, periodDays, today);
   const out: DayTotal[] = [];
   for (let d = start; d <= end; d = shiftDateKey(d, 1)) {
     out.push(byDate.get(d) ?? { date: d, macros: EMPTY_MACROS, logged: false });
-    if (out.length > 400) break; // hard stop against malformed keys
   }
   return out;
 }

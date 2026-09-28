@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { PageTitle } from '@/components/common';
@@ -9,6 +9,8 @@ import type { StoredProgram, Workout } from '@/db/types';
 import { useExercises, useFinishedWorkouts } from '@/hooks/useLive';
 import { uid } from '@/lib/id';
 import { buildProgramDay } from '@/lib/programRun';
+import { completedDays, dayKey, programPosition } from '@/lib/programProgress';
+import { relativeDay } from '@/lib/time';
 import { persistProgram, removeProgram } from '@/sync/local';
 import { EXAMPLE_PROGRAMS } from '@/fixtures/programs';
 import { parseProgramJSON, type Program } from '@/schema/program';
@@ -91,6 +93,9 @@ export function ProgramsPage() {
 
 function ProgramRow({ program, onView }: { program: StoredProgram; onView: () => void }) {
   const active = program.active;
+  const workouts = useFinishedWorkouts();
+  const data = program.data as Program;
+  const position = programPosition(data, completedDays(workouts, program.id));
   const setActive = async () => {
     const all = await db.programs.toArray();
     // Deactivate any other active program, then toggle this one.
@@ -111,7 +116,6 @@ function ProgramRow({ program, onView }: { program: StoredProgram; onView: () =>
     a.click();
     URL.revokeObjectURL(url);
   };
-  const data = program.data as Program;
 
   return (
     <HudPanel className="p-4" glow={active} bracketColor={active ? 'var(--amber)' : undefined}>
@@ -128,14 +132,19 @@ function ProgramRow({ program, onView }: { program: StoredProgram; onView: () =>
           {program.author && <div className="mono text-[10px] text-[var(--ink-faint)]">by {program.author}</div>}
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
             <Tag color="var(--cyan)">{data.weeks.length} weeks</Tag>
-            <Tag color="var(--violet)">{data.weeks.reduce((n, w) => n + w.days.length, 0)} days</Tag>
+            <Tag color="var(--violet)">{position.total} days</Tag>
             <Tag>{program.units}</Tag>
+            {position.completed > 0 && (
+              <Tag color={position.next ? 'var(--amber)' : 'var(--up)'}>
+                {position.next ? `${position.completed}/${position.total} done` : 'COMPLETE'}
+              </Tag>
+            )}
           </div>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         <HudButton className="!min-h-[38px]" onClick={onView}>
-          <IconCheck size={14} /> Follow
+          <IconCheck size={14} /> {position.completed > 0 && position.next ? 'Continue' : 'Follow'}
         </HudButton>
         <HudButton variant="ghost" sheen={false} className="!min-h-[38px]" onClick={setActive}>
           {active ? 'Unpin' : 'Set Active'}
@@ -158,10 +167,27 @@ function FollowModal({ program, onClose }: { program: StoredProgram | null; onCl
   const startSession = useAppStore((s) => s.startSession);
   const active = useAppStore((s) => s.active);
   const navigate = useNavigate();
-  const [openWeek, setOpenWeek] = useState(0);
+  const data = program ? (program.data as Program) : null;
 
-  if (!program) return null;
-  const data = program.data as Program;
+  const done = useMemo(
+    () => (program ? completedDays(workouts, program.id) : new Map<ReturnType<typeof dayKey>, number>()),
+    [workouts, program],
+  );
+  const position = useMemo(
+    () => (data ? programPosition(data, done) : null),
+    [data, done],
+  );
+
+  // Open on the week you're actually up to, not week 1 every time. `null` here
+  // means "no week expanded", which is what a finished program gets.
+  const [openWeek, setOpenWeek] = useState<number | null>(null);
+  const [weekFor, setWeekFor] = useState<string | null>(null);
+  if (program && weekFor !== program.id) {
+    setWeekFor(program.id);
+    setOpenWeek(position?.next?.weekIndex ?? 0);
+  }
+
+  if (!program || !data || !position) return null;
 
   const startDay = (weekIndex: number, dayIndex: number) => {
     if (active) {
@@ -192,31 +218,81 @@ function FollowModal({ program, onClose }: { program: StoredProgram | null; onCl
   return (
     <Modal open={!!program} onClose={onClose} title={program.name} wide>
       {program.description && (
-        <p className="mb-4 text-[12.5px] leading-relaxed text-[var(--ink-dim)]">{program.description}</p>
+        <p className="mb-3 text-[12.5px] leading-relaxed text-[var(--ink-dim)]">{program.description}</p>
       )}
+
+      <div className="mb-4 flex items-center gap-3">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[rgba(120,200,255,0.12)]">
+          <div
+            className="h-full rounded-full transition-[width] duration-500"
+            style={{
+              width: `${position.total ? (position.completed / position.total) * 100 : 0}%`,
+              background: position.next
+                ? 'linear-gradient(90deg, var(--cyan), var(--violet))'
+                : 'var(--up)',
+            }}
+          />
+        </div>
+        <span className="mono shrink-0 text-[11px] text-[var(--ink-faint)]">
+          {position.next
+            ? `${position.completed}/${position.total} days`
+            : `All ${position.total} days complete`}
+        </span>
+      </div>
       <div className="flex flex-col gap-2">
         {data.weeks.map((week, wi) => (
           <div key={wi} className="chamfer border border-[var(--line)]">
             <button
-              onClick={() => setOpenWeek(openWeek === wi ? -1 : wi)}
+              onClick={() => setOpenWeek(openWeek === wi ? null : wi)}
               className="font-head flex w-full items-center justify-between px-3 py-2.5 text-[11px] tracking-[0.16em] text-[var(--cyan)]"
+              aria-expanded={openWeek === wi}
             >
-              {week.name}
+              <span className="flex items-center gap-2">
+                {week.name}
+                <span className="mono text-[10px] text-[var(--ink-faint)]">
+                  {week.days.filter((_, di) => done.has(dayKey(wi, di))).length}/{week.days.length}
+                </span>
+              </span>
               <span className="text-[var(--ink-faint)]">{openWeek === wi ? '−' : '+'}</span>
             </button>
             {openWeek === wi && (
               <div className="flex flex-col gap-2 px-3 pb-3">
-                {week.days.map((day, di) => (
+                {week.days.map((day, di) => {
+                  const finishedAt = done.get(dayKey(wi, di));
+                  const isNext =
+                    position.next?.weekIndex === wi && position.next?.dayIndex === di;
+                  return (
                   <div key={di} className="border-t border-[var(--line)] pt-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-semibold text-[var(--ink)]">{day.name}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
+                        {finishedAt && (
+                          <span className="text-[var(--up)]" aria-hidden>
+                            <IconCheck size={13} />
+                          </span>
+                        )}
+                        <span
+                          className="truncate text-[13px] font-semibold"
+                          style={{ color: finishedAt ? 'var(--ink-dim)' : 'var(--ink)' }}
+                        >
+                          {day.name}
+                        </span>
+                        {finishedAt ? (
+                          <span className="mono shrink-0 text-[10px] text-[var(--ink-faint)]">
+                            {relativeDay(finishedAt)}
+                          </span>
+                        ) : isNext ? (
+                          <span className="font-head shrink-0 rounded-[2px] border border-[var(--amber)] px-1.5 py-0.5 text-[8px] tracking-widest text-[var(--amber)]">
+                            NEXT
+                          </span>
+                        ) : null}
+                      </span>
                       <HudButton
-                        variant="accent"
+                        variant={finishedAt && !isNext ? 'ghost' : 'accent'}
                         sheen={false}
                         className="!min-h-[34px] !px-3 !text-[10px]"
                         onClick={() => startDay(wi, di)}
                       >
-                        Start Day
+                        {finishedAt ? 'Repeat' : 'Start Day'}
                       </HudButton>
                     </div>
                     <ul className="mono mt-1.5 flex flex-col gap-0.5">
@@ -237,7 +313,8 @@ function FollowModal({ program, onClose }: { program: StoredProgram | null; onCl
                       ))}
                     </ul>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

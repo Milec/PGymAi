@@ -18,7 +18,7 @@ import {
   IconUser,
 } from '@/components/icons';
 import { WorkoutTimerBadge } from '@/components/WorkoutTimerBadge';
-import { DockedRestTimer } from '@/components/RestTimer';
+import { DockedRestTimer, RestAlarm } from '@/components/RestTimer';
 import { flushPendingPushes } from '@/sync/local';
 import { useAppStore } from '@/store/useAppStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -295,6 +295,7 @@ export default function App() {
     <>
       <AuroraBg />
       <Scanlines />
+      <RestAlarm />
       <div className="mx-auto flex min-h-full max-w-6xl flex-col md:flex-row">
         {/* Desktop side rail */}
         <aside className="sticky top-0 z-30 hidden h-screen w-52 shrink-0 flex-col overflow-y-auto border-r border-[var(--line)] px-4 py-6 md:flex">

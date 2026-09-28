@@ -281,8 +281,12 @@ function ExerciseCard({ entry }: { entry: WorkoutEntry }) {
       <AutoFill
         oneRmKg={oneRmKg}
         unit={profile.units}
+        remaining={entry.sets.filter((s) => !s.completed).length}
         onApply={(weightKg, reps) => {
+          // Only sets still to come. Rewriting a completed set would falsify
+          // what was actually lifted.
           for (const s of entry.sets) {
+            if (s.completed) continue;
             updateSet(entry.id, s.id, reps != null ? { weightKg, reps } : { weightKg });
           }
         }}
@@ -397,10 +401,13 @@ function PlateCalc({
 function AutoFill({
   oneRmKg,
   unit,
+  remaining,
   onApply,
 }: {
   oneRmKg: number;
   unit: Unit;
+  /** Sets not yet marked complete — the ones a fill would touch. */
+  remaining: number;
   onApply: (weightKg: number, reps?: number) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -481,14 +488,16 @@ function AutoFill({
                 variant="accent"
                 sheen={false}
                 className="mt-3 w-full !min-h-[38px]"
-                disabled={!computed}
+                disabled={!computed || remaining === 0}
                 onClick={() => {
                   if (!computed) return;
                   onApply(computed, mode === 'rpe' ? parseInt(reps) : undefined);
                   setOpen(false);
                 }}
               >
-                Fill all sets{mode === 'rpe' ? ' + reps' : ''}
+                {remaining === 0
+                  ? 'All sets done'
+                  : `Fill ${remaining} remaining set${remaining === 1 ? '' : 's'}${mode === 'rpe' ? ' + reps' : ''}`}
               </HudButton>
             </>
           )}
@@ -533,6 +542,7 @@ function SetRow({
         placeholder={set.targetText ?? '0'}
         onChange={(e) => updateSet(entryId, set.id, { weightKg: toKg(parseFloat(e.target.value) || 0, unit) })}
         className="cell"
+        aria-label={`Set ${index} weight in ${unit}`}
       />
       {oneRmKg > 0 && (
         <input
@@ -546,7 +556,7 @@ function SetRow({
             updateSet(entryId, set.id, { weightKg });
           }}
           className="cell"
-          aria-label="Percent of 1RM"
+          aria-label={`Set ${index} percent of 1RM`}
         />
       )}
       <input
@@ -556,6 +566,7 @@ function SetRow({
         placeholder={Array.isArray(set.targetReps) ? set.targetReps.join('–') : set.targetReps ? String(set.targetReps) : '0'}
         onChange={(e) => updateSet(entryId, set.id, { reps: parseInt(e.target.value) || 0 })}
         className="cell"
+        aria-label={`Set ${index} reps`}
       />
       <input
         type="number"
@@ -567,6 +578,7 @@ function SetRow({
         placeholder="—"
         onChange={(e) => updateSet(entryId, set.id, { rpe: e.target.value ? parseFloat(e.target.value) : undefined })}
         className="cell"
+        aria-label={`Set ${index} RPE`}
       />
       <div className="flex items-center justify-center gap-1">
         <button
@@ -578,7 +590,8 @@ function SetRow({
             color: set.completed ? 'var(--up)' : 'var(--ink-faint)',
             boxShadow: set.completed ? '0 0 12px rgba(56,247,176,0.4)' : 'none',
           }}
-          aria-label="Toggle complete"
+          aria-label={`Set ${index} ${set.completed ? 'completed' : 'mark complete'}`}
+          aria-pressed={set.completed}
         >
           <IconCheck size={16} />
         </button>
@@ -586,7 +599,7 @@ function SetRow({
       <button
         onClick={() => removeSet(entryId, set.id)}
         className="flex h-8 w-full items-center justify-center text-[var(--ink-faint)] transition-colors hover:text-[var(--down)]"
-        aria-label="Delete set"
+        aria-label={`Delete set ${index}`}
       >
         <IconTrash size={15} />
       </button>

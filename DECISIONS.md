@@ -472,6 +472,80 @@ link (`/fuel?date=YYYY-MM-DD`, which the Fuel page reads on mount).
   save leaves the session on screen with an error instead of silently
   discarding it.
 
+### Audit fixes and gaps closed (v13)
+
+A full pass over the app turned up three correctness bugs in the progression
+engine, one in the trends charts, and three features the app implied but
+didn't have.
+
+**Program units were ignored for absolute loads.** `suggestLoad` converted
+`{"type":"absolute","value":225}` with the *user's* display unit rather than
+the program's, so a lb-authored program read as 225 kg for a kg user — more
+than double the prescription. The program's unit now travels into
+`suggestLoad` as `programUnit`, with the user's unit still deciding what the
+result gets rounded to.
+
+**Linear and double progression rounded kg values with the lb step.** Both
+called `roundToIncrement(kgValue, unit)`, which treats its argument as
+already being in `unit`. For a lb user, 100 kg + 2.5 kg rounded to 105 kg —
+a 5 kg jump instead of 2.5, landing on a weight no plate set can make. Both
+now use `roundKgToIncrement`, which converts, rounds to a real plate step in
+the display unit, and converts back.
+
+**`hitAllTargets` was always true.** It was computed as
+`done.every((s) => s.completed)` over a list already filtered to completed
+sets. Linear progression therefore added load after any session where the top
+set hit its number, even if later sets were missed or abandoned. It now
+requires every logged set to be completed *and* to have reached its
+prescribed reps (the bottom of a range counts as a hit).
+
+**Trend charts truncated the wrong end.** `fillGaps`/`fillWaterGaps` stopped
+after 400 days counted from the *earliest* logged day, so anyone with more
+than that saw an old window with today missing. The window is now anchored to
+its end and capped at `MAX_GAP_FILL_DAYS`, so a long history loses its oldest
+days rather than its newest.
+
+**Backup export was incomplete and had no way back in.** The export skipped
+workout plans and water logs, and nothing could read the file it produced —
+which made "Export All Data" a dead end for anyone not using cloud sync.
+`src/lib/backup.ts` now builds and restores the whole set, validated by a
+tolerant Zod schema (`src/schema/backup.ts`): every collection is optional so
+older backups restore, and `looseObject` keeps fields a newer build added so a
+newer export doesn't silently lose data on an older install. Restore merges by
+id and writes through the sync helpers, so it re-stamps `updatedAt` and wins
+against the cloud copy instead of being reverted by the next reconcile.
+
+**The rest timer finished silently.** It counted to zero with no signal, which
+is the one moment the feature exists for. `src/lib/alert.ts` synthesises a
+two-tone chime with WebAudio (no audio asset to precache, works offline by
+construction) and pulses `navigator.vibrate`. The AudioContext is primed from
+the tap that starts the rest, because autoplay policy only unlocks audio from
+a user gesture and there is no gesture left when the countdown ends. `RestAlarm`
+is mounted app-wide so the alert still lands if you navigate mid-rest, and
+schedules a single timeout at the exact expiry rather than polling. An expiry
+noticed more than 10s late is swallowed — returning to the app long after a
+rest ended should be quiet. Off switch and a Test button live in Profile →
+Timers.
+
+**Programs had no memory.** The Follow view reopened at week 1 every time with
+no record of what had been done. Progress is now *derived* from the workout log
+rather than stored as a cursor: sessions already record `programId`,
+`weekIndex` and `dayIndex`, so `src/lib/programProgress.ts` reads completion
+straight out of history. That means progress can't drift out of step with the
+sessions, and deleting a session from the Activity Log correctly un-completes
+its day. The modal opens on the first unfinished day, ticks off finished ones
+with when they were done, flags the next one, and shows a progress bar; the
+program card shows `n/total done` and its button reads Continue. The unused
+`programProgress` Dexie table stays empty and unreferenced — the derived
+approach needs no schema.
+
+Smaller items from the same pass: auto-fill overwrote **completed** sets,
+rewriting what was actually lifted (it now fills only what's left, and says how
+many); *Erase Everything* left the rest-timer and collapsed-exercise keys in
+`localStorage`, resurrecting a countdown for a deleted session; `useNow` kept a
+1 s interval running while the tab was hidden; and the set-row inputs had no
+accessible names, so a screen reader announced four bare spinbuttons per row.
+
 ### Workout Planner (v8)
 
 Plans are pre-built workouts saved on the Workout tab: name + ordered

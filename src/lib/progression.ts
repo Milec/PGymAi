@@ -1,6 +1,6 @@
 import type { Intensity, PrescribedExercise, Progression } from '@/schema/program';
 import { estimate1rm } from './e1rm';
-import { roundKgToIncrement, roundToIncrement, toKg, type Unit } from './units';
+import { roundKgToIncrement, toKg, type Unit } from './units';
 
 /** Summary of the last time an exercise was performed, for auto-regulation. */
 export interface LastPerformance {
@@ -34,7 +34,10 @@ function repTop(reps: number | [number, number]): number {
 export function suggestLoad(
   ex: PrescribedExercise,
   ctx: {
+    /** The user's display unit — what suggested loads get rounded to. */
     unit: Unit;
+    /** The unit the program's own numbers are written in. Defaults to `unit`. */
+    programUnit?: Unit;
     /** User's current best e1RM (kg) for this exercise, if known. */
     currentE1rmKg?: number;
     /** Last time this exercise was performed. */
@@ -42,6 +45,7 @@ export function suggestLoad(
   },
 ): Suggestion {
   const { unit, currentE1rmKg, last } = ctx;
+  const programUnit = ctx.programUnit ?? unit;
 
   // 1) Progression rules take priority (some need history, some don't).
   if (ex.progression) {
@@ -51,7 +55,7 @@ export function suggestLoad(
 
   // 2) Otherwise resolve from the intensity prescription.
   if (ex.intensity) {
-    const s = fromIntensity(ex.intensity, ex, unit, currentE1rmKg);
+    const s = fromIntensity(ex.intensity, ex, unit, programUnit, currentE1rmKg);
     if (s) return s;
   }
 
@@ -70,14 +74,17 @@ function fromIntensity(
   intensity: Intensity,
   ex: PrescribedExercise,
   unit: Unit,
+  programUnit: Unit,
   currentE1rmKg?: number,
 ): Suggestion | null {
   switch (intensity.type) {
     case 'absolute':
+      // An absolute load is written in the *program's* units — reading 225 lb
+      // as 225 kg would more than double the prescription.
       return {
-        weightKg: toKg(intensity.value, unit),
+        weightKg: toKg(intensity.value, programUnit),
         reps: ex.reps,
-        rationale: `Prescribed ${intensity.value} ${unit}.`,
+        rationale: `Prescribed ${intensity.value} ${programUnit}.`,
       };
     case 'percent1rm': {
       if (!currentE1rmKg) return null;
@@ -115,7 +122,7 @@ function applyProgression(
       const target = prog.onSuccessRepTarget ?? repTop(ex.reps);
       if (last.hitAllTargets && last.topReps >= target) {
         return {
-          weightKg: roundToIncrement(last.topWeightKg + prog.incrementKg, unit),
+          weightKg: roundKgToIncrement(last.topWeightKg + prog.incrementKg, unit),
           reps: ex.reps,
           rationale: `Linear +${prog.incrementKg}kg (hit ${target} reps).`,
         };
@@ -132,7 +139,7 @@ function applyProgression(
       if (last.topReps >= hi && last.hitAllTargets) {
         // Climbed to top of range -> add load, reset to bottom.
         return {
-          weightKg: roundToIncrement(last.topWeightKg + prog.incrementKg, unit),
+          weightKg: roundKgToIncrement(last.topWeightKg + prog.incrementKg, unit),
           reps: [lo, hi],
           rationale: `Double progression: hit ${hi} reps → +${prog.incrementKg}kg, reset to ${lo}.`,
         };
@@ -174,9 +181,21 @@ export function rpePercent(rpe: number, reps: number): number {
   return row[col];
 }
 
+/** The rep count a set had to reach — the bottom of a range counts as a hit. */
+function targetFloor(target: number | [number, number] | undefined): number | undefined {
+  if (target === undefined) return undefined;
+  return Array.isArray(target) ? target[0] : target;
+}
+
 /** Compute a LastPerformance summary from logged sets of one exercise. */
 export function summarizePerformance(
-  sets: { weightKg: number; reps: number; completed: boolean; rpe?: number }[],
+  sets: {
+    weightKg: number;
+    reps: number;
+    completed: boolean;
+    rpe?: number;
+    targetReps?: number | [number, number];
+  }[],
   formula: 'epley' | 'brzycki' = 'epley',
 ): LastPerformance | undefined {
   const done = sets.filter((s) => s.completed && s.reps > 0);
@@ -187,11 +206,20 @@ export function summarizePerformance(
     if (s.weightKg > top.weightKg) top = s;
     bestE1rm = Math.max(bestE1rm, estimate1rm(s.weightKg, s.reps, formula));
   }
+  // A session only "hit all targets" if every logged set was completed and
+  // reached its prescribed reps. Checking `done` alone would be vacuous — it is
+  // already filtered to completed sets — and would bump the load after a
+  // session where the last sets were missed.
+  const hitAllTargets = sets.every((s) => {
+    if (!s.completed || s.reps <= 0) return false;
+    const floor = targetFloor(s.targetReps);
+    return floor === undefined || s.reps >= floor;
+  });
   return {
     topWeightKg: top.weightKg,
     topReps: top.reps,
     topRpe: top.rpe,
     bestE1rmKg: bestE1rm,
-    hitAllTargets: done.every((s) => s.completed),
+    hitAllTargets,
   };
 }

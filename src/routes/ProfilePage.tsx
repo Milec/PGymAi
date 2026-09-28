@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AccountPanel } from '@/components/AccountPanel';
 import { HeightField } from '@/components/HeightField';
 import { PageTitle } from '@/components/common';
 import { Chip, Field, HudButton, HudInput, HudPanel } from '@/components/hud';
 import { db } from '@/db/db';
 import { loadDemoData } from '@/dev/demoData';
+import { playRestDoneAlert, primeAlertAudio } from '@/lib/alert';
+import { downloadBackup, restoreBackup } from '@/lib/backup';
+import { backupCounts, describeBackup, parseBackupJSON } from '@/schema/backup';
 import type { Sex } from '@/data/strengthStandards';
 import { THEMES } from '@/lib/theme';
 import { formatWeight, fromKg, toKg, type Unit } from '@/lib/units';
 import { eraseRemoteData, isSyncActive } from '@/sync/syncEngine';
-import { useAppStore } from '@/store/useAppStore';
+import { clearLocalUiState, useAppStore } from '@/store/useAppStore';
 
 export function ProfilePage() {
   const profile = useAppStore((s) => s.profile);
@@ -31,6 +34,33 @@ export function ProfilePage() {
     if (!Number.isNaN(v) && v > 0) await updateProfile({ bodyweightKg: toKg(v, unit) });
   };
 
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  const restoreFrom = async (file: File) => {
+    const parsed = parseBackupJSON(await file.text());
+    if ('error' in parsed) {
+      alert(parsed.error);
+      return;
+    }
+    const summary = describeBackup(backupCounts(parsed.backup));
+    if (
+      !confirm(
+        `Restore this backup?\n\n${summary}\n\nRecords with the same id are overwritten; anything only on this device is kept.`,
+      )
+    ) {
+      return;
+    }
+    setRestoring(true);
+    try {
+      await restoreBackup(parsed.backup);
+      location.reload();
+    } catch (err) {
+      setRestoring(false);
+      alert(`Restore failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   const wipeData = async () => {
     const cloud = isSyncActive();
     const msg = cloud
@@ -50,6 +80,10 @@ export function ProfilePage() {
       }
     }
     await db.delete();
+    // The rest timer and collapsed-exercise state live in localStorage, not
+    // Dexie — leaving them behind resurrects a countdown for a session that no
+    // longer exists.
+    clearLocalUiState();
     location.reload();
   };
 
@@ -183,6 +217,43 @@ export function ProfilePage() {
             </div>
           </div>
         </Field>
+
+        <div className="mt-4">
+          <div className="font-head mb-2 text-[10px] tracking-[0.2em] text-[var(--ink-faint)]">
+            END-OF-REST ALERT
+          </div>
+          <div className="flex gap-2">
+            <Chip
+              active={profile.restAlert !== false}
+              onClick={() => void updateProfile({ restAlert: true })}
+              color="var(--amber)"
+            >
+              On
+            </Chip>
+            <Chip
+              active={profile.restAlert === false}
+              onClick={() => void updateProfile({ restAlert: false })}
+              color="var(--amber)"
+            >
+              Off
+            </Chip>
+            <HudButton
+              variant="ghost"
+              sheen={false}
+              className="!min-h-[34px] !px-3 !text-[10px]"
+              onClick={() => {
+                primeAlertAudio();
+                playRestDoneAlert();
+              }}
+            >
+              Test
+            </HudButton>
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-[var(--ink-faint)]">
+            Beeps and vibrates when the rest timer reaches zero. Needs the app on screen — browsers
+            won&apos;t let a background tab make noise.
+          </p>
+        </div>
       </HudPanel>
 
       <HudPanel className="mb-4 p-5" label="STANDARDS TRANSPARENCY" bracketColor="var(--violet)">
@@ -198,19 +269,39 @@ export function ProfilePage() {
       <HudPanel className="p-5" label="DATA" bracketColor="var(--down)">
         <p className="mb-3 text-[12px] text-[var(--ink-dim)]">
           Everything is stored locally in your browser (IndexedDB) and works fully offline. If you
-          enable Cloud Sync and sign in, your data is also synced to your Supabase account.
+          enable Cloud Sync and sign in, your data is also synced to your Supabase account. Export
+          writes a JSON backup of everything except the seeded exercise library; Restore reads one
+          back, overwriting records it shares an id with and keeping the rest.
         </p>
         <div className="flex flex-wrap gap-2">
           <HudButton onClick={() => void loadDemoData().then(() => location.assign('#/'))}>
             Load Sample Data
           </HudButton>
-          <HudButton variant="ghost" sheen={false} onClick={() => void exportAll()}>
+          <HudButton variant="ghost" sheen={false} onClick={() => void downloadBackup()}>
             Export All Data
+          </HudButton>
+          <HudButton variant="ghost" sheen={false} onClick={() => fileRef.current?.click()}>
+            Restore Backup
           </HudButton>
           <HudButton variant="danger" sheen={false} onClick={wipeData}>
             Erase Everything
           </HudButton>
         </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          aria-label="Restore backup file"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = ''; // let the same file be picked twice
+            if (file) void restoreFrom(file);
+          }}
+        />
+        {restoring && (
+          <p className="mono mt-3 text-[11px] text-[var(--cyan)]">Restoring…</p>
+        )}
       </HudPanel>
 
       <div className="mt-4 text-center text-[10px] text-[var(--ink-faint)]">
@@ -219,31 +310,4 @@ export function ProfilePage() {
       </div>
     </div>
   );
-}
-
-async function exportAll() {
-  const [workouts, programs, exercises, profile, foodLogs, foods] = await Promise.all([
-    db.workouts.toArray(),
-    db.programs.toArray(),
-    db.exercises.filter((e) => !!e.custom).toArray(),
-    db.profile.get('me'),
-    db.foodLogs.toArray(),
-    db.foods.toArray(),
-  ]);
-  const payload = {
-    exportedAt: new Date().toISOString(),
-    profile,
-    workouts,
-    programs,
-    customExercises: exercises,
-    foodLogs,
-    foods,
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'stride-backup.json';
-  a.click();
-  URL.revokeObjectURL(url);
 }
